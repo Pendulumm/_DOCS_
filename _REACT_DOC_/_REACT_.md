@@ -2301,6 +2301,8 @@ input框中的内容不会被刷掉，而span中的时间在不断的变化
 
 
 
+# Create React App
+
 
 
 
@@ -2311,7 +2313,442 @@ input框中的内容不会被刷掉，而span中的时间在不断的变化
 
 
 
+## 路由的理解
+
+
+
+### 1.什么是路由
+
+​			一个路由就是一个映射关系(key--->value)
+
+​			key为路径，value可能是function或component
+
+
+
+### 2.路由分类
+
+​			一、后端路由
+
+​							1) value是function，用来处理客户端提交的请求
+
+​							2)注册路由：router.get(path,function(req,res))
+
+​							3)工作过程：当node接收到一个请求时，根据请求路径找到匹配的路由，调用路由中的函数来处理请求，返回相应数据
+
+
+
+​			二、前端路由
+
+​							1)value是component，用于展示页面内容
+
+​							2)注册路由：<Route path="/test" component={Test}>
+
+​							3)工作过程：当浏览器的path变为/test时，当前路由组件就会变为Test组件
+
+
+
+
+
+### 3.前端路由原理
+
+BOM中的history
+
+
+
+createBrowserHistory() 直接使用H5推出的history身上的API
+
+createHashHistory() hash值（锚点）(兼容性佳)
+
+
+
+
+
+push()
+
+压入一条历史记录到历史记录栈
+
+
+
+repalce()
+
+替换栈顶的记录
+
+
+
+## react-router
+
+
+
+react-router 分别给 web,native,anywhere使用
+
+
+
+### react-router-dom
+
+
+
+```http
+https://v5.reactrouter.com/web/guides/quick-start
+```
+
+
+
+```shell
+npm i react-router-dom@5
+```
+
+
+
+
+
+
+
+#### make an example
+
+
+
+dir(
+
+components--->About
+
+components--->Home
+
+)
+
+
+
+About
+
+```jsx
+import React, { Component } from 'react'
+
+export default class About extends Component {
+    render() {
+        return (
+            <h3>我是About的内容</h3>
+        )
+    }
+}
+```
+
+
+
+
+
+Home
+
+```jsx
+import React, { Component } from 'react'
+
+export default class Home extends Component {
+    render() {
+        return (
+            <h3>我是Home的内容</h3>
+        )
+    }
+}
+```
+
+
+
+App.js
+
+```javascript
+import { Link, Route } from 'react-router-dom'
+import Home from './components/Home'
+import About from './components/About'
+
+function App() {
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <div className="page-header"><h2>React Router Demo</h2></div>
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 原生html中，靠<a>跳转不同的页面 */}
+            {/* <a className="list-group-item" href="./about.html">About</a>
+            <a className="list-group-item active" href="./home.html">Home</a> */}
+
+            {/* 在react中靠路由链接实现切换组件---编写路由链接 */}
+            <Link className="list-group-item" to="/about">About</Link>
+            <Link className="list-group-item" to="/home">Home</Link>
+
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Route path="/about" component={About} />
+              <Route path="/home" component={Home} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+index.js
+
+```javascript
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+import { BrowserRouter } from 'react-router-dom'
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+    <BrowserRouter>
+        <App />
+    </BrowserRouter>
+);
+```
+
+
+
+##### review
+
+
+
+<Link>:
+
+​			Invariant failed: You should not use <Link> outside a <Router>
+
+​			<Link>应被 <Router>包裹
+
+ <Router>:
+
+​			Router分为 **BrowserRouter**和**HashRouter**
+
+​			如果直接用<Router>包裹<Link>会报错
+
+​					Cannot read properties of undefined (reading 'location')
+
+
+
+<BrowserRouter>:
+
+​			整个应用只能用一个路由器去管理，所以可以让<BrowserRouter>包裹<App/>，让整个应用都被一个路由器管理
+
+
+
+
+
+<HashRouter>:
+
+​			![](./img/hash.png) 
+
+​			特点：#后边的东西都不会作为资源发送给服务器
+
+
+
+
+
+##### 路由组件和一般组件
+
+
+
+路由组件与一般组件的最大区别是：
+
+​				路由组件会收到路由器传递的三个重要的props：history,location,match
+
+![](./img/route_component.png) 
+
+
+
+
+
+
+
+##### 动态追加className
+
+
+
+<NavLink>:
+
+​			NavLink中有activeClassName属性，可以自定义类名
+
+
+
+react-router-dom.js
+
+```javascript
+{
+  NavLink.displayName = "NavLink";
+  var ariaCurrentType = PropTypes.oneOf(["page", "step", "location", "date", "time", "true", "false"]);
+  NavLink.propTypes = _extends({}, Link.propTypes, {
+    "aria-current": ariaCurrentType,
+    activeClassName: PropTypes.string,
+    activeStyle: PropTypes.object,
+    className: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+    exact: PropTypes.bool,
+    isActive: PropTypes.func,
+    location: PropTypes.object,
+    sensitive: PropTypes.bool,
+    strict: PropTypes.bool,
+    style: PropTypes.oneOfType([PropTypes.object, PropTypes.func])
+  });
+}
+```
+
+
+
+App.js
+
+```javascript
+import { NavLink, Route } from 'react-router-dom'
+
+import Home from './pages/Home'             // Home是路由组件
+import About from './pages/About'           // About是路由组件
+import Header from './components/Header'    // Header是一般组件
+
+function App() {
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <Header a={1} />
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 原生html中，靠<a>跳转不同的页面 */}
+            {/* <a className="list-group-item" href="./about.html">About</a>
+            <a className="list-group-item active" href="./home.html">Home</a> */}
+
+            {/* 在react中靠路由链接实现切换组件---编写路由链接 */}
+            <NavLink activeClassName="active_test" className="list-group-item" to="/about">About</NavLink>
+            <NavLink activeClassName="active_test" className="list-group-item" to="/home">Home</NavLink>
+
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Route path="/about" component={About} />
+              <Route path="/home" component={Home} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+index.html
+
+```html
+<style>
+    .active_test {
+      background-color: orange !important;
+      color: white !important;
+    }
+  </style>
+```
+
+**注意**：自定义的样式权限没有bootstrap高，需要 !important
+
+
+
+##### 封装NavLink
+
+
+
+App.js
+
+```javascript
+import { NavLink, Route } from 'react-router-dom'
+
+import Home from './pages/Home'             // Home是路由组件
+import About from './pages/About'           // About是路由组件
+import Header from './components/Header'    // Header是一般组件
+import MyNavLink from './components/MyNavLink'
+
+function App() {
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <Header a={1} />
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 原生html中，靠<a>跳转不同的页面 */}
+            {/* <a className="list-group-item" href="./about.html">About</a>
+            <a className="list-group-item active" href="./home.html">Home</a> */}
+
+            {/* 在react中靠路由链接实现切换组件---编写路由链接 */}
+            <MyNavLink to="/about" title="About"></MyNavLink>
+            <MyNavLink to="/home" title="Home"></MyNavLink>
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Route path="/about" component={About} />
+              <Route path="/home" component={Home} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+export default App;
+```
+
+
+
+MyNavLink--->index.jsx
+
+```jsx
+import React, { Component } from 'react'
+
+import { NavLink } from 'react-router-dom'
+
+export default class MyNavLink extends Component {
+
+    render() {
+        const { to, title } = this.props;
+        return (
+            <NavLink activeClassName="active_test" className="list-group-item" to={to}>{title}</NavLink>
+        )
+    }
+}
+```
+
+
+
+
+
 # Antd
+
+
+
+
+
+
 
 
 
@@ -3791,7 +4228,7 @@ export default createStore(reducers, applyMiddleware(thunk))
 
 ​			原来当单个组件使用redux的时候state的值的类型即为single reducer内初始化的state值的类型
 
-​		当reducer ---> reducers 的时候state是一个对象,
+​		当reducer ---> reducers 的时候，state是一个**对象**,
 
 ​			该对象的key是调用combineReducers时传入对象的(自定义的)key
 
@@ -3944,3 +4381,376 @@ export default connect(
 
 
 ![](./img/sharing_state.png) 
+
+
+
+#### review
+
+
+
+##### combineReducers
+
+
+
+```typescript
+/**
+ * Turns an object whose values are different reducer functions, into a single
+ * reducer function. It will call every child reducer, and gather their results
+ * into a single state object, whose keys correspond to the keys of the passed
+ * reducer functions.
+ *
+ * @template S Combined state object type.
+ *
+ * @param reducers An object whose values correspond to different reducer
+ *   functions that need to be combined into one. One handy way to obtain it
+ *   is to use ES6 `import * as reducers` syntax. The reducers may never
+ *   return undefined for any action. Instead, they should return their
+ *   initial state if the state passed to them was undefined, and the current
+ *   state for any unrecognized action.
+ *
+ * @returns A reducer function that invokes every reducer inside the passed
+ *   object, and builds a state object with the same shape.
+ */
+export function combineReducers<S>(
+  reducers: ReducersMapObject<S, any>
+): Reducer<CombinedState<S>>
+export function combineReducers<S, A extends Action = AnyAction>(
+  reducers: ReducersMapObject<S, A>
+): Reducer<CombinedState<S>, A>
+export function combineReducers<M extends ReducersMapObject<any, any>>(
+  reducers: M
+): Reducer<
+  CombinedState<StateFromReducersMapObject<M>>,
+  ActionFromReducersMapObject<M>
+>
+```
+
+
+
+
+
+##### state
+
+
+
+当combineReducers后，state不再是单个reducer初始化时该类型的值，而是一个对象
+
+
+
+
+
+
+
+
+
+
+
+## Pure Function
+
+
+
+
+
+
+
+页面不会更新
+
+
+
+```javascript
+import { ADD_PERSON } from '../constant'
+
+// 初始化人的列表
+const initState = [{ id: '001', name: 'tom', age: 18 }];
+
+export default function personReducer(prevState = initState, action) {
+    // console.log('personReducer>>> ');
+
+    // 这里解构的data来自于该action creator返回的对象中的data属性
+    const { type, data } = action;
+    switch (type) {
+        case ADD_PERSON:    // 若添加一个人
+            prevState.unshift(data);
+            // return [data, ...prevState];
+            return prevState;
+        default:
+            return prevState;
+    }
+}
+```
+
+
+
+在reducer中，如果返回的prevState和传入的prevState，react-redux不会使页面更新。
+
+这是因为用以上的方法传入的prevState的地址值和返回的prevState的地址值相同，而react-redux对state的判断是浅比较，
+
+故不会引起页面的更新，但在redux中确实能够存在新增的数据。
+
+
+
+同时，破坏了reducer是纯函数的原则
+
+unshift()影响了原数组(影响了参数)
+
+
+
+纯函数的约束：
+
+(相同的输入必定得到相同的输出)
+
+​			1.不得修改参数数据
+
+​			2.不会产生任何副作用，例如：网络请求，输入和输出设备
+
+​			3.不能调用 Date.now()或Math.random()等不纯的方法
+
+
+
+
+
+## redux dev
+
+
+
+1.install Redux DevTools
+
+
+
+2.npm i @redux-devtools/extension
+
+
+
+```javascript
+/*
+    该文件专门用于暴露一个store对象，整个应用只有一个store对象 
+*/
+
+// 引入createStore,专门用于创建redux中最为核心的store对象
+import { createStore, applyMiddleware, combineReducers } from 'redux'
+// 引入为Count组件服务的reducer
+import countReducer from './reducers/count'
+// 引入为Person组件服务的reducer
+import personReducer from './reducers/person'
+// 引入redux-thunk，用于支持异步action
+import thunk from 'redux-thunk'
+
+// 引入 @redux-devtools/extension
+import { composeWithDevTools } from '@redux-devtools/extension'
+
+// 合并各个reducer
+// combineReducers传入的对象就是redux里保存的总状态对象
+const reducers = combineReducers({
+    sum: countReducer,
+    persons: personReducer
+})
+
+// 暴露store
+export default createStore(reducers, composeWithDevTools(applyMiddleware(thunk)))
+```
+
+
+
+在redux-dev中，左边的是actions的各个type，可以jump到之前
+
+
+
+![](./img/actions_type.png) 
+
+
+
+
+
+点击show dispatch可以在页面dispatch
+
+![](./img/dispatch_temp.png)
+
+
+
+
+
+## final version
+
+
+
+person action
+
+```javascript
+import { ADD_PERSON } from '../constant'
+
+// 创建增加一个人的action动作对象
+export const addPerson = personObj => ({ type: ADD_PERSON, data: personObj })
+```
+
+
+
+count action
+
+```javascript
+/*
+    该文件专门为Count组件生成action对象
+    action creator
+*/
+
+import { INCREMENT, DECREMENT } from '../constant';
+
+// 同步action
+// 同步action，就是指action的值为为Object类型的一般对象 
+export const increment = data => ({ type: INCREMENT, data })
+export const decrement = data => ({ type: DECREMENT, data })
+
+// 异步action
+// 异步action，就是指action的值为函数；异步action中一般都会调用同步action，异步action不是必须要用的
+export const incrementAsync = (data, time) => {
+    // store调用的该函数
+    // each middleware will be given the `dispatch` and `getState` functions as named arguments.
+    return (dispatch) => {
+        // console.log(dispatch);
+        setTimeout(() => {
+            // 通知redux加data
+            dispatch(increment(data));
+        }, time);
+    }
+}
+```
+
+
+
+person container
+
+```jsx
+import React, { Component } from 'react'
+import { connect } from 'react-redux'
+import { addPerson } from '../../redux/actions/person'
+
+import { nanoid } from 'nanoid'
+
+class Person extends Component {
+
+    addPerson = () => {
+        const name = this.nameNode.value;
+        const age = this.ageNode.value * 1;
+        const personObj = {
+            id: nanoid(),
+            name,
+            age
+        };
+        this.props.addPerson(personObj);
+        this.nameNode.value = '';
+        this.ageNode.value = '';
+    }
+
+    render() {
+        console.log('PersontUI props:', this.props);
+        return (
+            <div>
+                <h2>我是Person组件,上方组件求和为{this.props.sum}</h2>
+                <input ref={cur => this.nameNode = cur} type="text" placeholder='输入名字' />
+                <input ref={cur => this.ageNode = cur} type="text" placeholder='输入年龄' />
+                <button onClick={this.addPerson}>添加</button>
+                <ul>
+                    {
+                        this.props.persons.map((person) => {
+                            return <li key={person.id}>{person.name}---{person.age}</li>
+                        })
+                    }
+                </ul>
+            </div>
+        )
+    }
+}
+
+export default connect(
+    state => ({ persons: state.persons, sum: state.sum }),  // 映射状态
+    {   //映射操作状态的方法
+        addPerson
+    }
+)(Person)
+
+```
+
+
+
+
+
+count container
+
+```jsx
+import React, { Component } from 'react'
+
+// 引入 action creator
+import { increment, decrement, incrementAsync } from '../../redux/actions/count'
+
+// 引入connect用于连接UI组件与redux
+import { connect } from 'react-redux'
+
+// 定义UI组件
+class Count extends Component {
+    state = { carName: '奔驰c63' }
+
+    // 加法
+    increment = () => {
+        const { value } = this.selectedNumber;
+        this.props.increment(value * 1);
+    }
+    // 减法
+    decrement = () => {
+        const { value } = this.selectedNumber;
+        this.props.decrement(value * 1);
+    }
+    // 奇数再加
+    incrementIfOdd = () => {
+        const { value } = this.selectedNumber;
+        if (this.props.sum % 2 !== 0) {
+            this.props.increment(value * 1);
+        }
+    }
+    // 异步加
+    incrementIfAsync = () => {
+        const { value } = this.selectedNumber;
+        this.props.incrementAsync(value * 1, 500)
+    }
+    render() {
+        console.log('CountUI props:', this.props);
+        return (
+            <div>
+                {/* getState() 拿到的是redux保存的状态，redux里是reducer专门负责初始化和加工状态 */}
+                {/* 页面上能有数据说明，countReducer被调用，Count组件当前并没有通知store处理state，这是因为store调用的为了拿到初始值 */}
+                <h2>我是Count组件,下方组件总人数为:{this.props.personNum}</h2>
+                <h4>当前求和为:{this.props.sum}</h4>
+                <select ref={currentNode => this.selectedNumber = currentNode}>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>&nbsp;
+                <button onClick={this.increment}>+</button>&nbsp;
+                <button onClick={this.decrement}>-</button>&nbsp;
+                <button onClick={this.incrementIfOdd}>当前求和为奇数再加</button>&nbsp;
+                <button onClick={this.incrementIfAsync}>异步加</button>&nbsp;
+            </div>
+        )
+    }
+}
+
+
+// 使用connect()() 创建并暴露一个Count的容器组件
+export default connect(
+    // 当合并了reducers，也就意味着合并了各个reducer使用的state，现在的state是总状态
+    state => ({ sum: state.sum, personNum: state.persons.length }),
+    {
+        increment,
+        decrement,
+        incrementAsync
+    }
+)(Count)
+```
+
+
+
+
+
+
+
+
+
+# ReactRouter6
