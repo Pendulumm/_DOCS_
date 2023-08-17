@@ -130,6 +130,12 @@ JSX
 </html>
 ```
 
+(这里的括号并无副作用，仅仅只是让标签对其规整)
+
+
+
+
+
 
 
 JS
@@ -2672,6 +2678,10 @@ index.html
 
 
 
+为避免大量冗余类名出现在NavLink中，可以封装一个统一类名的NavLink。封装的NavLink是一般组件，并可以为其传递props
+
+
+
 App.js
 
 ```javascript
@@ -2737,6 +2747,1191 @@ export default class MyNavLink extends Component {
     }
 }
 ```
+
+
+
+
+
+###### 如果要传递多组标签属性
+
+
+
+若某个已封装的NavLink需要传入多组标签属性
+
+```javascript
+<MyNavLink to="/about" title="About" a="1" b={2} c={3}></MyNavLink>
+```
+
+
+
+可以在标签中使用 spread syntax
+
+```jsx
+import React, { Component } from 'react'
+
+import { NavLink } from 'react-router-dom'
+
+export default class MyNavLink extends Component {
+
+    render() {
+        const { title } = this.props;
+        return (
+            <NavLink activeClassName="active_test" className="list-group-item" {...this.props} >{title}</NavLink>
+        )
+    }
+}
+```
+
+
+
+###### review
+
+
+
+Ques:	{...this.props}是如何添加到NavLink的?
+
+
+
+Ans:	Unsolve currently,possibly have some clues,but without strong evidence to prove it...
+
+
+
+```http
+https://legacy.reactjs.org/docs/jsx-in-depth.html
+```
+
+
+
+Fundamentally, JSX just provides syntactic sugar for the `React.createElement(component, props, ...children)` function.
+
+
+
+The JSX code:
+
+```jsx
+<MyButton color="blue" shadowSize={2}>
+  Click Me
+</MyButton>
+```
+
+compiles into:
+
+```javascript
+React.createElement(
+  MyButton,
+  {color: 'blue', shadowSize: 2},
+  'Click Me'
+)
+```
+
+​	
+
+
+
+
+
+当在封装的NavLink中传入标签体内容
+
+```js
+			<MyNavLink to="/about" a="1" b={2} c={3}>About</MyNavLink>
+            <MyNavLink to="/home" >Home</MyNavLink>
+```
+
+ 在props中会接收到 children这个属性
+
+![](./img/MyNavLink_children.png) 
+
+
+
+在展开后同样能传递给NavLink，让之前封装的NavLink的标签体内容变为NavLink的children
+
+```jsx
+<NavLink activeClassName="active_test" className="list-group-item" {...this.props} />
+```
+
+
+
+
+
+
+
+##### Switch
+
+
+
+在匹配路径为 /home 时
+
+```jsx
+			  <Route path="/about" component={About} />
+              <Route path="/home" component={Home} />
+              <Route path="/home" component={Test_} />
+```
+
+
+
+![](./img/home_dul.png) 
+
+如果有很多路由，匹配时会一个个去对应路径，这样会大大降低效率。
+
+
+
+**如果用  <Switch>包裹整个路由**
+
+
+
+```jsx
+			 <Switch>
+                <Route path="/about" component={About} />
+                <Route path="/home" component={Home} />
+                <Route path="/home" component={Test_} />
+              </Switch>
+```
+
+
+
+![](./img/Switch.png) 
+
+
+
+这样在一个路由匹配成功后，就不会继续匹配相同路径的路由了。
+
+
+
+
+
+
+
+##### 样式丢失问题
+
+
+
+webpack配置localhost为public文件夹的根路径，
+
+如果请求路径下没有相应的资源，那么会返回public下的index.html
+
+
+
+
+
+```jsx
+import { Route, Switch } from 'react-router-dom'
+
+import Home from './pages/Home'             // Home是路由组件
+import About from './pages/About'           // About是路由组件
+import Test_ from './pages/Test_'
+
+import Header from './components/Header'    // Header是一般组件
+import MyNavLink from './components/MyNavLink'
+
+
+function App() {
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <Header a={1} />
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 原生html中，靠<a>跳转不同的页面 */}
+            {/* <a className="list-group-item" href="./about.html">About</a>
+            <a className="list-group-item active" href="./home.html">Home</a> */}
+
+            {/* 在react中靠路由链接实现切换组件---编写路由链接 */}
+            <MyNavLink to="/xxx/about" a="1" b={2} c={3}>About</MyNavLink>
+            <MyNavLink to="/xxx/home" >Home</MyNavLink>
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Switch>
+                <Route path="/xxx/about" component={About} />
+                <Route path="/xxx/home" component={Home} />
+                {/* <Route path="/home" component={Test_} /> */}
+              </Switch>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+如果路由路径是多级的结构，刷新的时候会造成样式的丢失
+
+
+
+![](./img/style_loss1.png) 
+
+
+
+![](./img/style_loss2.png) 
+
+
+
+
+
+
+
+
+
+###### 解决:
+
+在index.html中
+
+```tex
+因为./是相对路径，所以匹配的是在/about之前的路径，错误的把 "http://localhost:3000/xxx/" 匹配到 "/css/bootstrap"
+```
+
+1.
+
+```html
+<link rel="stylesheet" href="/css/bootstrap.css">
+```
+
+2.
+
+%PUBLIC_URL%代表的就是public的绝对路径
+
+```html
+<link rel="stylesheet" href="%PUBLIC_URL%/css/bootstrap.css">
+```
+
+3.
+
+如果在index.html中仍使用相对路径，可以在index.js中使用HashRouter
+
+
+
+```javascript
+	<HashRouter>
+        <App />
+    </HashRouter>
+```
+
+
+
+![](./img/hash_router1.png) 
+
+![](./img/hash_router2.png) 
+
+
+
+
+
+##### 路由的精准匹配和模糊匹配
+
+
+
+
+
+在路由跳转的时候只能比路由路径多而不能少，路由匹配默认就是模糊匹配
+
+
+
+```jsx
+import { Route, Switch } from 'react-router-dom'
+
+import Home from './pages/Home'             // Home是路由组件
+import About from './pages/About'           // About是路由组件
+import Test_ from './pages/Test_'
+
+import Header from './components/Header'    // Header是一般组件
+import MyNavLink from './components/MyNavLink'
+
+
+function App() {
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <Header a={1} />
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 原生html中，靠<a>跳转不同的页面 */}
+            {/* <a className="list-group-item" href="./about.html">About</a>
+            <a className="list-group-item active" href="./home.html">Home</a> */}
+
+            {/* 在react中靠路由链接实现切换组件---编写路由链接 */}
+            <MyNavLink to="/about" a="1" b={2} c={3}>About</MyNavLink>
+            <MyNavLink to="/home/a/b" >Home</MyNavLink>
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Switch>
+                <Route path="/about" component={About} />
+                <Route path="/home" component={Home} />
+                {/* <Route path="/home" component={Test_} /> */}
+              </Switch>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+
+
+![](./img/vague.png) 
+
+跳转虽然到 /home/a/b，但仍能和 path="/home" 相匹配，并渲染出对应的组件
+
+
+
+
+
+如果精准匹配
+
+
+
+```jsx
+{/* <Route exact={true} path="/home" component={Home} /> */}
+<Route exact path="/home" component={Home} />
+```
+
+
+
+![](./img/exact_.png) 
+
+
+
+如果路由跳转诡异再使用exact，默认不需要exact，有时候开启exact会导致无法继续匹配二级路由
+
+
+
+
+
+
+
+##### Redirect
+
+
+
+```jsx
+	 <Switch>
+                <Route path="/about" component={About} />
+                <Route path="/home" component={Home} />
+                <Redirect to="/about" />
+      </Switch>
+```
+
+
+
+当刚进页面时，路由即没有匹配到 /about，也没有匹配到 /home，最终重定向 到 /about
+
+
+
+一般写在所有注册路由的最下方，当所有路由都无法匹配时，跳转到Redirect指定的路由
+
+
+
+
+
+
+
+#### nested route
+
+
+
+
+
+newDir(
+
+Home--->Message--->index.jsx
+
+Home--->News--->index.jsx
+
+)
+
+
+
+Message
+
+```jsx
+import React, { Component } from 'react'
+
+export default class Message extends Component {
+  render() {
+    return (
+      <div>
+        <ul>
+          <li>
+            <a href="/message1">message001</a>&nbsp;&nbsp;
+          </li>
+          <li>
+            <a href="/message2">message002</a>&nbsp;&nbsp;
+          </li>
+          <li>
+            <a href="/message/3">message003</a>&nbsp;&nbsp;
+          </li>
+        </ul>
+      </div>
+    )
+  }
+}
+```
+
+
+
+News
+
+```jsx
+import React, { Component } from 'react'
+
+export default class News extends Component {
+  render() {
+    return (
+      <ul>
+        <li>news001</li>
+        <li>news002</li>
+        <li>news003</li>
+      </ul>
+    )
+  }
+}
+```
+
+
+
+Home
+
+```jsx
+import React, { Component } from 'react'
+
+import MyNavLink from '../../components/MyNavLink'
+import News from './News'
+import Message from './Message'
+
+export default class Home extends Component {
+    render() {
+        return (
+            <div>
+                <h2>Home组件内容</h2>
+                <div>
+                    <ul className="nav nav-tabs">
+                        <li>
+                            <MyNavLink to="/news">News</MyNavLink>
+                        </li>
+                        <li>
+                            <MyNavLink to="/message">Message</MyNavLink>
+                        </li>
+                    </ul>
+                    {/* 注册路由 */}
+
+                </div>
+            </div>
+        )
+    }
+}
+```
+
+
+
+路由的匹配都是从最开始注册到最后注册这个流程走下去的
+
+
+
+如上方的Home组件中路由跳转到 /news，会在最开始注册的路由中进行匹配，发现无法匹配会redirect到 /about
+
+
+
+```jsx
+ 			<Switch>
+                <Route path="/about" component={About} />
+                <Route path="/home" component={Home} />
+                <Redirect to="/about" />
+              </Switch>
+```
+
+
+
+
+
+![](./img/message_To_about.png) 
+
+
+
+现在修改Home--->index.jsx
+
+
+
+```jsx
+import React, { Component } from 'react'
+
+import MyNavLink from '../../components/MyNavLink'
+import { Route, Switch } from 'react-router-dom'
+
+import News from './News'
+import Message from './Message'
+
+export default class Home extends Component {
+    render() {
+        return (
+            <div>
+                <h2>Home组件内容</h2>
+                <div>
+                    <ul className="nav nav-tabs">
+                        <li>
+                            <MyNavLink to="/home/news">News</MyNavLink>
+                        </li>
+                        <li>
+                            <MyNavLink to="/home/message">Message</MyNavLink>
+                        </li>
+                    </ul>
+                    {/* 注册路由 */}
+                    <Switch>
+                        <Route path="/home/news" component={News} />
+                        <Route path="/home/message" component={Message} />
+                    </Switch>
+                </div>
+            </div>
+        )
+    }
+}
+```
+
+
+
+![](./img/home_news_.png) 
+
+看看点击Home再点击News发生了什么?
+
+
+
+在点击News的时候path为 /home/news
+
+
+
+```jsx
+			<Switch>
+                <Route path="/about" component={About} />
+                <Route path="/home" component={Home} />
+                <Redirect to="/about" />
+              </Switch>
+```
+
+这时会和 /home匹配，所以Home组件还能存在于页面上
+
+于是在Home组件中继续进行路由的匹配
+
+```jsx
+					<Switch>
+                        <Route path="/home/news" component={News} />
+                        <Route path="/home/message" component={Message} />
+                    </Switch>
+```
+
+最终 /home/news 匹配到news组件
+
+
+
+如果在第一层注册路由中使用exact
+
+```jsx
+			<Switch>
+                <Route path="/about" component={About} />
+                <Route exact path="/home" component={Home} />
+                <Redirect to="/about" />
+              </Switch>
+```
+
+
+
+![](./img/message_To_about.png) 
+
+无论是 /home/news 还是 /home/message都不会和 /home匹配，所以会redirect到 /about
+
+
+
+
+
+#### 路由传参
+
+
+
+
+
+newDir(
+
+Home--->Message--->Detail--->index.jsx
+
+)
+
+
+
+
+
+Message
+
+```jsx
+import React, { Component } from 'react'
+
+import Detail from './Detail';
+import { Link, Route } from 'react-router-dom'
+
+
+export default class Message extends Component {
+  state = {
+    messageArr: [
+      { id: '01', title: 'message1' },
+      { id: '02', title: 'message2' },
+      { id: '03', title: 'message3' },
+    ]
+  }
+  render() {
+    const { messageArr } = this.state;
+    return (
+      <div>
+        <ul>
+          {
+            messageArr.map((msgObj) => {
+              return (
+                <li key={msgObj.id}>
+                  <Link to="/home/message/detail" >{msgObj.title}</Link>&nbsp;&nbsp;
+                </li>
+              )
+            })
+          }
+        </ul>
+        <hr />
+        <Route path="/home/message/detail" component={Detail} />
+      </div>
+    )
+  }
+}
+```
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+
+const detailData = [
+    {id:'01',content:'Hi~'},
+    {id:'02',content:'Goodbye~'},
+    {id:'03',content:'GoodNight~'}
+]
+
+export default class Detail extends Component {
+    render() {
+        return (
+            <ul>
+                <li>ID:???</li>
+                <li>TITLE:???</li>
+                <li>CONTENT:???</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+需要在路由跳转的时候传递参数，让Detail组件能动态变换数据
+
+
+
+##### 1.params传参
+
+
+
+Message
+
+```jsx
+import React, { Component } from 'react'
+
+import Detail from './Detail';
+import { Link, Route } from 'react-router-dom'
+
+
+export default class Message extends Component {
+  state = {
+    messageArr: [
+      { id: '01', title: 'message1' },
+      { id: '02', title: 'message2' },
+      { id: '03', title: 'message3' },
+    ]
+  }
+  render() {
+    const { messageArr } = this.state;
+    return (
+      <div>
+        <ul>
+          {
+            messageArr.map((msgObj) => {
+              return (
+                <li key={msgObj.id}>
+                  {/* 向路由组件传递params参数 */}
+                  <Link to={`/home/message/detail/${msgObj.id}/${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp;
+                </li>
+              )
+            })
+          }
+        </ul>
+        <hr />
+        {/* 声明接收params参数 */}
+        <Route path="/home/message/detail/:id/:title" component={Detail} />
+      </div>
+    )
+  }
+}
+```
+
+
+
+导航区(Message)在遍历的时候带着id和title
+
+同时应在对应路由声明接收
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+
+const detailData = [
+    { id: '01', content: 'Hi~' },
+    { id: '02', content: 'Goodbye~' },
+    { id: '03', content: 'GoodNight~' }
+]
+
+export default class Detail extends Component {
+    render() {
+        // console.log('Detail props:', this.props);
+        const { id, title } = this.props.match.params;
+        const findResult = detailData.find((detailObj) => {
+            return detailObj.id === id;
+        })
+        return (
+            <ul>
+                <li>ID:{id}</li>
+                <li>TITLE:{title}</li>
+                <li>CONTENT:{findResult.content}</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+
+
+可以在Detail中打印props
+
+![](./img/route_params.png) 
+
+
+
+ 可以看到在 match中有 params属性，对应的值是一个整理后的对象，
+
+下方中 path .../:id/:title 对应着值为 .../03/message3
+
+
+
+
+
+
+
+
+
+##### 2.search参数
+
+
+
+Message
+
+```jsx
+import React, { Component } from 'react'
+
+import Detail from './Detail';
+import { Link, Route } from 'react-router-dom'
+
+
+export default class Message extends Component {
+  state = {
+    messageArr: [
+      { id: '01', title: 'message1' },
+      { id: '02', title: 'message2' },
+      { id: '03', title: 'message3' },
+    ]
+  }
+  render() {
+    const { messageArr } = this.state;
+    return (
+      <div>
+        <ul>
+          {
+            messageArr.map((msgObj) => {
+              return (
+                <li key={msgObj.id}>
+                  {/* 向路由组件传递params参数 */}
+                  {/* <Link to={`/home/message/detail/${msgObj.id}/${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递search参数 */}
+                  <Link to={`/home/message/detail/?id=${msgObj.id}&title=${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp;
+                </li>
+              )
+            })
+          }
+        </ul>
+        <hr />
+        {/* 声明接收params参数 */}
+        {/* <Route path="/home/message/detail/:id/:title" component={Detail} /> */}
+
+        {/* search参数 无需声明接收 */}
+        <Route path="/home/message/detail" component={Detail} />
+      </div>
+    )
+  }
+}
+```
+
+
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+
+const detailData = [
+    { id: '01', content: 'Hi~' },
+    { id: '02', content: 'Goodbye~' },
+    { id: '03', content: 'GoodNight~' }
+]
+
+export default class Detail extends Component {
+    render() {
+        console.log('Detail props:', this.props);
+
+        // const { id, title } = this.props.match.params;      // 接收params参数
+
+        const { search } = this.props.location // 接收search参数
+
+        const findResult = detailData.find((detailObj) => {
+            // return detailObj.id === id;
+        })
+        return (
+            <ul>
+                <li>ID:???</li>
+                <li>TITLE:???</li>
+                <li>CONTENT:???</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+打印Dtail收到的props
+
+![](./img/route_search.png) 
+
+
+
+可以看到 location.search中有 query
+
+多组key value用&分隔(urlencoded)
+
+
+
+引入一个库去处理query
+
+querystring是内置库
+
+```jsx
+import qs from 'querystring'
+```
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+import qs from 'querystring'
+
+const detailData = [
+    { id: '01', content: 'Hi~' },
+    { id: '02', content: 'Goodbye~' },
+    { id: '03', content: 'GoodNight~' }
+]
+
+export default class Detail extends Component {
+    render() {
+        console.log('Detail props:', this.props);
+
+        // const { id, title } = this.props.match.params;      // 接收params参数
+
+        const { search } = this.props.location // 接收search参数
+        const { id, title } = qs.parse(search.slice(1))
+
+        const findResult = detailData.find((detailObj) => {
+            return detailObj.id === id;
+        })
+        return (
+            <ul>
+                <li>ID:{id}</li>
+                <li>TITLE:{title}</li>
+                <li>CONTENT:{findResult.content}</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+
+
+##### 3.state参数
+
+
+
+Message
+
+```jsx
+import React, { Component } from 'react'
+
+import Detail from './Detail';
+import { Link, Route } from 'react-router-dom'
+
+
+export default class Message extends Component {
+  state = {
+    messageArr: [
+      { id: '01', title: 'message1' },
+      { id: '02', title: 'message2' },
+      { id: '03', title: 'message3' },
+    ]
+  }
+  render() {
+    const { messageArr } = this.state;
+    return (
+      <div>
+        <ul>
+          {
+            messageArr.map((msgObj) => {
+              return (
+                <li key={msgObj.id}>
+                  {/* 向路由组件传递params参数 */}
+                  {/* <Link to={`/home/message/detail/${msgObj.id}/${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递search参数 */}
+                  {/* <Link to={`/home/message/detail/?id=${msgObj.id}&title=${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递state参数 */}
+                  <Link to={{ pathname: '/home/message/detail', state: { id: msgObj.id, title: msgObj.title } }} >{msgObj.title}</Link>&nbsp;&nbsp;
+                </li>
+              )
+            })
+          }
+        </ul>
+        <hr />
+        {/* 声明接收params参数 */}
+        {/* <Route path="/home/message/detail/:id/:title" component={Detail} /> */}
+
+        {/* search参数 无需声明接收 */}
+        {/* <Route path="/home/message/detail" component={Detail} /> */}
+
+        {/* state参数 无需声明接收 */}
+        <Route path="/home/message/detail" component={Detail} />
+      </div>
+    )
+  }
+}
+```
+
+
+
+**注意：** 这里的state与react的state没有关系，这里的state只是路由props里的一个属性
+
+
+
+传递state参数时注意传递的是一个对象最外的{}表示为js表达式,里面的{}才为对象
+
+
+
+打印state
+
+![](./img/route_state.png) 
+
+
+
+可以发现state是一个对象
+
+
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+// import qs from 'querystring'
+
+const detailData = [
+    { id: '01', content: 'Hi~' },
+    { id: '02', content: 'Goodbye~' },
+    { id: '03', content: 'GoodNight~' }
+]
+
+export default class Detail extends Component {
+    render() {
+        console.log('Detail props:', this.props);
+
+        // const { id, title } = this.props.match.params;       // 接收params参数
+
+        // const { search } = this.props.location               // 接收search参数
+        // const { id, title } = qs.parse(search.slice(1))
+
+        const { id, title } = this.props.location.state         // 接收state参数
+
+        const findResult = detailData.find((detailObj) => {
+            return detailObj.id === id;
+        })
+        return (
+            <ul>
+                <li>ID:{id}</li>
+                <li>TITLE:{title}</li>
+                <li>CONTENT:{findResult.content}</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+
+
+
+
+**注意：** 在使用state 传参的时候url是不会变化的，例如:点击message3 或 message1，URL不会有任何变化。
+
+​			假如点击了message3再刷新页面Detail会丢失吗？
+
+
+
+不会，由于使用了 BrowserRouter包裹了整个App，故BrowserRouter一直在操作浏览器的history
+
+
+
+![](./img/router_history.png) 
+
+
+
+可以看到传递的props里有维护的histroy
+
+
+
+
+
+假如直接清除浏览器的缓存及所有数据
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+// import qs from 'querystring'
+
+const detailData = [
+    { id: '01', content: 'Hi~' },
+    { id: '02', content: 'Goodbye~' },
+    { id: '03', content: 'GoodNight~' }
+]
+
+export default class Detail extends Component {
+    render() {
+        console.log('Detail props:', this.props);
+
+        // const { id, title } = this.props.match.params;       // 接收params参数
+
+        // const { search } = this.props.location               // 接收search参数
+        // const { id, title } = qs.parse(search.slice(1))
+
+        const { id, title } = this.props.location.state || {}        // 接收state参数
+
+        const findResult = detailData.find((detailObj) => {
+            return detailObj.id === id;
+        }) || {}
+        return (
+            <ul>
+                <li>ID:{id}</li>
+                <li>TITLE:{title}</li>
+                <li>CONTENT:{findResult.content}</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+以http://localhost:3000/home/message/detail该路径重新进入
+
+
+
+![](./img/router_history_state_undefined.png) 
+
+
+
+可以看到state是undefined
+
+
+
+
+
+#### push与replace
+
+
+
+#### 编程式路由导航
+
+
+
+
+
+
+
+
+
+
 
 
 
