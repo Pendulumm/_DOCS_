@@ -2311,6 +2311,18 @@ input框中的内容不会被刷掉，而span中的时间在不断的变化
 
 
 
+```http
+https://create-react-app.dev/docs/getting-started
+```
+
+
+
+```shell
+npx create-react-app my-app
+```
+
+
+
 
 
 # ReactRouter5
@@ -3915,13 +3927,521 @@ export default class Detail extends Component {
 
 
 
+##### review
+
+
+
+to可以传字符串，也可以传对象的形式的值
+
+
+
+react-rotuer-dom.js
+
+```javascript
+function _interopDefault (ex) 
+{ return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var PropTypes = _interopDefault(require('prop-types'));
+
+var toType = PropTypes.oneOfType([PropTypes.string, PropTypes.object, PropTypes.func]);
+
+Link.propTypes = {
+    innerRef: refType,
+    onClick: PropTypes.func,
+    replace: PropTypes.bool,
+    target: PropTypes.string,
+    to: toType.isRequired
+  };
+```
+
+
+
+
+
+
+
+to : object
+
+An object that can have any of the following properties:
+
+- `pathname`: A string representing the path to link to.
+- `search`: A string representation of query parameters.
+- `hash`: A hash to put in the URL, e.g. `#a-hash`.
+- `state`: State to persist to the `location`.
+
+
+
+**注：** 使用BrowseRouter 传递的props,类式组件this.props能找到；
+
+​		而函数组件需要使用hooks "useHistory"
+
+```http
+https://v5.reactrouter.com/web/api/Hooks/usehistory
+```
+
+
+
+
+
+
+
 
 
 #### push与replace
 
 
 
+默认路由跳转是 PUSH，PUSH 是一个压栈操作。
+
+
+
+
+
+```typescript
+export enum Action {
+  /**
+   * A POP indicates a change to an arbitrary index in the history stack, such
+   * as a back or forward navigation. It does not describe the direction of the
+   * navigation, only that the current index changed.
+   *
+   * Note: This is the default action for newly created history objects.
+   */
+  Pop = "POP",
+
+  /**
+   * A PUSH indicates a new entry being added to the history stack, such as when
+   * a link is clicked and a new page loads. When this happens, all subsequent
+   * entries in the stack are lost.
+   */
+  Push = "PUSH",
+
+  /**
+   * A REPLACE indicates the entry at the current index in the history stack
+   * being replaced by a new one.
+   */
+  Replace = "REPLACE",
+}
+```
+
+
+
+
+
+**注：**"POP"是一种默认的行为(如果不是push或replace)
+
+
+
+
+
+现如果将 message1 message2 message3 设置为replace
+
+```jsx
+import React, { Component } from 'react'
+
+import Detail from './Detail';
+import { Link, Route } from 'react-router-dom'
+
+
+export default class Message extends Component {
+  state = {
+    messageArr: [
+      { id: '01', title: 'message1' },
+      { id: '02', title: 'message2' },
+      { id: '03', title: 'message3' },
+    ]
+  }
+  render() {
+    // console.log('Message props:', this.props);
+    const { messageArr } = this.state;
+    return (
+      <div>
+        <ul>
+          {
+            messageArr.map((msgObj) => {
+              return (
+                <li key={msgObj.id}>
+                  {/* 向路由组件传递params参数 */}
+                  {/* <Link to={`/home/message/detail/${msgObj.id}/${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递search参数 */}
+                  {/* <Link to={`/home/message/detail/?id=${msgObj.id}&title=${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递state参数 */}
+                  <Link replace to={{ pathname: '/home/message/detail', state: { id: msgObj.id, title: msgObj.title } }} >
+                    {msgObj.title}
+                  </Link>&nbsp;&nbsp;
+                </li>
+              )
+            })
+          }
+        </ul>
+        <hr />
+        {/* 声明接收params参数 */}
+        {/* <Route path="/home/message/detail/:id/:title" component={Detail} /> */}
+
+        {/* search参数 无需声明接收 */}
+        {/* <Route path="/home/message/detail" component={Detail} /> */}
+
+        {/* state参数 无需声明接收 */}
+        <Route path="/home/message/detail" component={Detail} />
+      </div>
+    )
+  }
+}
+```
+
+
+
+```tex
+/home/message	--->将被replace
+/home/news
+/about
+```
+
+
+
+```tex
+在 /home/message/detail 点击 浏览器的后退 会直接到 /home/news
+```
+
+
+
+如果路由跳转全设置为replace会不留下痕迹
+
+
+
 #### 编程式路由导航
+
+
+
+Message
+
+```jsx
+import React, { Component } from 'react'
+
+import Detail from './Detail';
+import { Link, Route } from 'react-router-dom'
+
+
+export default class Message extends Component {
+  state = {
+    messageArr: [
+      { id: '01', title: 'message1' },
+      { id: '02', title: 'message2' },
+      { id: '03', title: 'message3' },
+    ]
+  }
+
+  replaceShow = (id, title) => {
+    // replace跳转，携带params参数
+    // this.props.history.replace(`/home/message/detail/${id}/${title}`)
+
+    // replace跳转，携带search参数
+    // this.props.history.replace(`/home/message/detail?id=${id}&title=${title}`)
+
+    // replace跳转，携带state参数
+    this.props.history.replace(`/home/message/detail`, { id, title })
+  }
+  pushShow = (id, title) => {
+    // push跳转，携带params参数
+    // this.props.history.push(`/home/message/detail/${id}/${title}`)
+
+    // push跳转，携带search参数
+    // this.props.history.push(`/home/message/detail?id=${id}&title=${title}`)
+
+    // push跳转，携带state参数
+    this.props.history.push(`/home/message/detail`, { id, title })
+  }
+  back = () => {
+    this.props.history.goBack()
+  }
+  forward = () => {
+    this.props.history.goForward()
+  }
+  go = (n) => {
+    this.props.history.go(n)
+  }
+
+  render() {
+    // console.log('Message props:', this.props);
+    const { messageArr } = this.state;
+    return (
+      <div>
+        <ul>
+          {
+            messageArr.map((msgObj) => {
+              return (
+                <li key={msgObj.id}>
+                  {/* 向路由组件传递params参数 */}
+                  {/* <Link to={`/home/message/detail/${msgObj.id}/${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递search参数 */}
+                  {/* <Link to={`/home/message/detail/?id=${msgObj.id}&title=${msgObj.title}`} >{msgObj.title}</Link>&nbsp;&nbsp; */}
+
+                  {/* 向路由组件传递state参数 */}
+                  <Link to={{ pathname: '/home/message/detail', state: { id: msgObj.id, title: msgObj.title } }} >
+                    {msgObj.title}
+                  </Link>&nbsp;&nbsp;
+
+                  &nbsp;<button onClick={() => this.pushShow(msgObj.id, msgObj.title)} >push查看</button>&nbsp;
+                  &nbsp;<button onClick={() => this.replaceShow(msgObj.id, msgObj.title)}>replace查看</button>
+                </li>
+              )
+            })
+          }
+        </ul>
+        <hr />
+        {/* 声明接收params参数 */}
+        {/* <Route path="/home/message/detail/:id/:title" component={Detail} /> */}
+
+        {/* search参数 无需声明接收 */}
+        {/* <Route path="/home/message/detail" component={Detail} /> */}
+
+        {/* state参数 无需声明接收 */}
+        <Route path="/home/message/detail" component={Detail} />
+
+        <button onClick={this.back}>回退</button>&nbsp;
+        <button onClick={this.forward}>前进</button>&nbsp;
+        <button onClick={() => this.go(2)}>前进2</button>&nbsp;
+        <button onClick={() => this.go(-2)}>回退2</button>
+      </div>
+    )
+  }
+}
+```
+
+
+
+
+
+Detail
+
+```jsx
+import React, { Component } from 'react'
+
+import qs from 'querystring'
+
+const detailData = [
+    { id: '01', content: 'Hi~' },
+    { id: '02', content: 'Goodbye~' },
+    { id: '03', content: 'GoodNight~' }
+]
+/* const PropTypes = _interopDefault(require('prop-types'));
+function _interopDefault(ex) { console.log('ex:', ex); return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+const toType = PropTypes.oneOfType([PropTypes.string, PropTypes.object, PropTypes.func]); */
+
+
+export default class Detail extends Component {
+    render() {
+        /* console.log('PropTypes:', PropTypes);
+        console.log('PropTypes.object:', PropTypes.object); */
+
+        console.log('Detail props:', this.props);
+
+        // const { id, title } = this.props.match.params;       // 接收params参数
+
+        /* const { search } = this.props.location               // 接收search参数
+        const { id, title } = qs.parse(search.slice(1)) */
+
+        const { id, title } = this.props.location.state || {}        // 接收state参数
+
+        const findResult = detailData.find((detailObj) => {
+            return detailObj.id === id;
+        }) || {}
+        return (
+            <ul>
+                <li>ID:{id}</li>
+                <li>TITLE:{title}</li>
+                <li>CONTENT:{findResult.content}</li>
+            </ul>
+        )
+    }
+}
+```
+
+
+
+ 用函数来实现路由跳转
+
+
+
+#### WithRouter
+
+
+
+ 一般组件和路由组件不同，拿不到路由器传递的props
+
+
+
+
+
+```jsx
+import React, { Component } from 'react'
+import { withRouter } from 'react-router-dom'
+
+class Header extends Component {
+    back = () => {
+        this.props.history.goBack()
+    }
+    forward = () => {
+        this.props.history.goForward()
+    }
+    go = (n) => {
+        this.props.history.go(n)
+    }
+    render() {
+        console.log('Header props:', this.props);
+        return (
+            <div className="page-header">
+                <h2>React Router Demo</h2>
+                <button onClick={this.back}>回退</button>&nbsp;
+                <button onClick={this.forward}>前进</button>&nbsp;
+                <button onClick={() => this.go(2)}>前进2</button>&nbsp;
+                <button onClick={() => this.go(-2)}>回退2</button>
+            </div>
+
+        )
+    }
+}
+let C = withRouter(Header)
+console.log('C:', C);
+export default C
+```
+
+
+
+
+
+
+
+```javascript
+/**
+ * A public higher-order component to access the imperative API
+ */
+
+function withRouter(Component) {
+  var displayName = "withRouter(" + (Component.displayName || Component.name) + ")";
+
+  var C = function C(props) {
+    var wrappedComponentRef = props.wrappedComponentRef,
+        remainingProps = _objectWithoutPropertiesLoose(props, ["wrappedComponentRef"]);
+
+    return /*#__PURE__*/React.createElement(context.Consumer, null, function (context) {
+      !context ?  invariant(false, "You should not use <" + displayName + " /> outside a <Router>")  : void 0;
+      return /*#__PURE__*/React.createElement(Component, _extends({}, remainingProps, context, {
+        ref: wrappedComponentRef
+      }));
+    });
+  };
+
+  C.displayName = displayName;
+  C.WrappedComponent = Component;
+
+  {
+    C.propTypes = {
+      wrappedComponentRef: PropTypes.oneOfType([PropTypes.string, PropTypes.func, PropTypes.object])
+    };
+  }
+
+  return hoistStatics(C, Component);
+}
+```
+
+
+
+withRouter可以加工一般组件，让一般组件具备路由组件所持有的API
+
+withRouter的返回值是一个新组件
+
+
+
+![](./img/withRouter_C.png) 
+
+
+
+可以看到withRotuer的返回值是C，为一个函数，函数体参照上面的reference
+
+
+
+
+
+
+
+#### BrowserRouter和HashRouter
+
+
+
+
+
+##### 1.原理
+
+​			BrowserRouter使用的是H5的history API,不兼容IE9及以下版本
+
+​			HashRouter使用的是URL的哈希值
+
+##### 2.url
+
+​			BrowserRouter的路径中没有#，例如：localhost:3000/demo/test
+
+​			HashRouter的路径中包含#，例如：localhost:3000/#/demo/test 			
+
+​			(#后面的都不会发送给服务器，它不认为是一种请求资源的路径)
+
+##### 3.刷新后对路由state的影响
+
+​			1)BrowserRouter没有任何影响，因为state保存在history对象中
+
+​			2)HashRouter刷新后会导致路由state参数的丢失！！！
+
+​			
+
+
+
+
+
+如果用HashRouter来包裹App
+
+```jsx
+	<HashRouter>
+        <App />
+    </HashRouter>
+```
+
+
+
+![](./img/hash_state_1.png) 
+
+
+
+如果点击刷新
+
+
+
+![](./img/hash_state_2.png) 
+
+
+
+
+
+可以看到state为undefined，页面上也无数据
+
+(因为 HashRouter没有用 H5的history API，也就没有维护props里的history)
+
+
+
+
+
+
+
+
+
+
+
+##### 4.注
+
+​			HashRouter可以用于解决一些路径错误相关的问题
+
+
 
 
 
@@ -5949,3 +6469,193 @@ export default connect(
 
 
 # ReactRouter6
+
+
+
+
+
+### React Router
+
+​			React Router 以三个不同的包发布到npm上，分别为：
+
+​					1.react-router: 路由的核心库，提供了很多的：组件、钩子。
+
+​					2.react-router-dom: 包含react-router所有内容，并添加一些专门用于DOM的组件，例如 <BrowserRouter>等。
+
+​					3.react-router: 包括react-router所有内容，并添加一些专门用于ReactNative的API，例如<NativeRouter>等。
+
+
+
+​			与React Router 5相比改变了什么？
+
+​					1.内置组件的变化：移除 <Switch />，新增 <Routes />等
+
+​					2.语法的变化：component={About} 变为 element={<About />}
+
+​					3.新增多个hooks：useParams,useNavigate,useMatch等
+
+​					4.明确推荐函数式组件！
+
+
+
+
+
+#### react-router-dom
+
+
+
+
+
+
+
+##### make an example
+
+
+
+newDir(
+
+pages--->About--->index.jsx
+
+pages--->Home--->index.jsx
+
+)
+
+
+
+index.js
+
+```javascript
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+import { BrowserRouter } from 'react-router-dom'
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
+
+```
+
+
+
+App.js
+
+```javascript
+import { NavLink, Routes, Route } from "react-router-dom"
+
+import About from "./pages/About";
+import Home from "./pages/Home";
+
+function App() {
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <div className="page-header"><h2>React Router Demo</h2></div>
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 路由链接 */}
+            <NavLink className="list-group-item" to="/about">About</NavLink>
+            <NavLink className="list-group-item" to="/home">Home</NavLink>
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Routes>
+                <Route path="/about" element={<About />} />
+                <Route path="/home" element={<Home />} />
+              </Routes>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+
+
+About
+
+```jsx
+import React from 'react'
+
+export default function About() {
+    return (
+        <h3>我是About的内容</h3>
+    )
+}
+```
+
+
+
+Home
+
+```jsx
+import React from 'react'
+
+export default function Home() {
+    return (
+        <h3>我是Home的内容</h3>
+    )
+}
+```
+
+
+
+
+
+
+
+假如没有用Routes包裹<Route />
+
+则会报错:
+
+**A <Route> is only ever to be used as the child of <Routes> element, never rendered directly. Please wrap your <Route> in a <Routes>.**
+
+
+
+而在React Router 5中用Switch可以包裹也可以不包裹
+
+
+
+
+
+和Switch一样，如果匹配到了一个path，不会再接着匹配同名path
+
+```jsx
+			<Routes>
+                <Route path="/about" element={<About />} />
+                <Route path="/about" element={<Demo />} />
+                <Route path="/home" element={<Home />} />
+              </Routes>
+```
+
+
+
+
+
+![](./img/router6_Routes.png) 
+
+
+
+
+
+
+
+
+
