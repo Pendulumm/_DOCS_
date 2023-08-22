@@ -5228,7 +5228,7 @@ export interface Middleware<
 
 
 
-MiddlewareAPI 是 action中的异步action,作为middleware的参数api,
+MiddlewareAPI 是 action中的异步action,作为middleware的参数的api,
 
 所以在action中返回一个回调函数时会收到两个参数，一个是dispatch,一个是getState
 
@@ -6464,6 +6464,311 @@ export default connect(
 
 
 
+# Extension
+
+
+
+## 1.setState
+
+
+
+setState的参数有两种方式，一种为对象，另一种为函数
+
+
+
+1_SetState
+
+```jsx
+import React, { Component } from 'react'
+
+export default class SetState_ extends Component {
+
+    state = { count: 0 }
+
+    increse = () => {
+        // 1.获取原来的count值
+        const { count } = this.state;
+        // 2.更新状态
+        this.setState({ count: count + 1 });
+        // setState是同步方法，但是setState引起react更新的动作是异步的
+        console.log('this.state.count', count);
+    }
+
+
+    render() {
+        return (
+            <div>
+                <h1>当前求和为:{this.state.count}</h1>
+                <button onClick={this.increse}>点我+1</button>
+            </div>
+        )
+    }
+}
+```
+
+
+
+
+
+`setState` enqueues changes to the component state. It tells React that this component and its children need to re-render with the new state. This is the main way you’ll update the user interface in response to interactions.
+
+
+
+
+
+![](./img/setState_pitfall.png) 
+
+
+
+1_SetState
+
+```jsx
+import React, { Component } from 'react'
+
+export default class SetState_ extends Component {
+
+    state = { count: 0 }
+
+    increse = () => {
+        // 对象式的setState
+
+        /* // 1.获取原来的count值
+        const { count } = this.state;
+        // 2.更新状态
+        this.setState({ count: count + 1 }, () => {
+            // callback的时机在react改完状态并调完render后执行
+
+            // 注意：这里的count为之前解构的值
+            // count 不等于 this.state.count，因为状态更新了
+            console.log('count', count);
+            console.log('this.state.count', this.state.count);
+        });
+        // setState是同步方法，但是setState引起react更新的动作是异步的
+        // console.log('this.state.count', this.state.count);
+        // console.log('\count', count); */
+
+        // 函数式的setState
+
+        /* this.setState((prevState, props) => {
+            const { count } = prevState;
+            console.log('prevState', prevState);
+            console.log('props', props);
+            return { count: count + 1 };
+        }) */
+        this.setState(prevState => ({ count: prevState.count + 1 }))
+    }
+
+
+    render() {
+        return (
+            <div>
+                <h1>当前求和为:{this.state.count}</h1>
+                <button onClick={this.increse}>点我+1</button>
+            </div>
+        )
+    }
+}
+```
+
+
+
+`setState(nextState, callback?)`
+
+- `nextState`: Either an object or a function.
+  - If you pass an object as `nextState`, it will be shallowly merged into `this.state`.
+  - If you pass a function as `nextState`, it will be treated as an *updater function*. It must be pure, should take the pending state and props as arguments, and should return the object to be shallowly merged into `this.state`. React will put your updater function in a queue and re-render your component. During the next render, React will calculate the next state by applying all of the queued updaters to the previous state.
+- **optional** `callback`: If specified, React will call the `callback` you’ve provided after the update is committed.
+
+
+
+
+
+## 2.lasy(load)
+
+
+
+
+
+
+
+Call `lazy` outside your components to declare a lazy-loaded React component:
+
+
+
+```jsx
+import React, { lazy, Suspense } from 'react'
+
+import { NavLink, Route } from 'react-router-dom'
+
+// import Home from './Home'
+// import About from './About'
+import Loading from './Loading'
+
+const Home = lazy(() => import('./Home'))
+const About = lazy(() => import('./About'))
+
+function LasyLoad_() {
+    return (
+        <div>
+            <div className="row">
+                <div className="col-xs-offset-2 col-xs-8">
+                    <div className="page-header"><h2>React Router Demo</h2></div>
+                </div>
+            </div>
+            <div className="row">
+                <div className="col-xs-2 col-xs-offset-2">
+                    <div className="list-group">
+                        {/* 在react中靠路由链接实现切换组件---编写路由链接 */}
+                        <NavLink className="list-group-item" to="/about">About</NavLink>
+                        <NavLink className="list-group-item" to="/home">Home</NavLink>
+                    </div>
+                </div>
+                <div className="col-xs-6">
+                    <div className="panel">
+                        <div className="panel-body">
+                            <Suspense fallback={<Loading />}>
+                                {/* 注册路由 */}
+                                <Route path="/about" component={About} />
+                                <Route path="/home" component={Home} />
+                            </Suspense>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default LasyLoad_;
+```
+
+
+
+Loading
+
+```jsx
+import React, { Component } from 'react'
+
+export default class Loading extends Component {
+    render() {
+        return (
+            <h1 style={{ backgroundColor: 'gray', color: 'orange' }}>Loading...</h1>
+        )
+    }
+}
+```
+
+
+
+Parameters 
+
+- `load`: A function that returns a [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) or another *thenable* (a Promise-like object with a `then` method). React will not call `load` until the first time you attempt to render the returned component. After React first calls `load`, it will wait for it to resolve, and then render the resolved value as a React component. Both the returned Promise and the Promise’s resolved value will be cached, so React will not call `load` more than once. If the Promise rejects, React will `throw` the rejection reason for the nearest Error Boundary to handle.
+
+Returns 
+
+`lazy` returns a React component you can render in your tree. While the code for the lazy component is still loading, attempting to render it will *suspend.* Use [`<Suspense>`](https://react.dev/reference/react/Suspense) to display a loading indicator while it’s loading.
+
+
+
+**`load` function** 
+
+Parameters 
+
+`load` receives no parameters.
+
+Returns 
+
+You need to return a [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) or some other *thenable* (a Promise-like object with a `then` method). It needs to eventually resolve to a valid React component type, such as a function, [`memo`](https://react.dev/reference/react/memo), or a [`forwardRef`](https://react.dev/reference/react/forwardRef) component.
+
+
+
+注：如果没有用 <Suspense>包裹懒加载的组件会报错
+
+
+
+
+
+
+
+## 3.Hooks
+
+
+
+#### Built-in React Hooks
+
+*Hooks* let you use different React features from your components. You can either use the built-in Hooks or combine them to build your own.
+
+
+
+
+
+##### State Hooks
+
+*State* lets a component [“remember” information like user input.](https://react.dev/learn/state-a-components-memory) For example, a form component can use state to store the input value, while an image gallery component can use state to store the selected image index.
+
+To add state to a component, use one of these Hooks:
+
+- [`useState`](https://react.dev/reference/react/useState) declares a state variable that you can update directly.
+- [`useReducer`](https://react.dev/reference/react/useReducer) declares a state variable with the update logic inside a [reducer function.](https://react.dev/learn/extracting-state-logic-into-a-reducer)
+
+
+
+###### useState
+
+
+
+`useState(initialState)`
+
+
+
+Call `useState` at the top level of your component to declare a [state variable.](https://react.dev/learn/state-a-components-memory)
+
+The convention is to name state variables like `[something, setSomething]` using [array destructuring.](https://javascript.info/destructuring-assignment)
+
+
+
+**Parameters**
+
+- **initialState**: The value you want the state to be initially. It can be a value of any type, but there is a special behavior for functions. This argument is ignored after the initial render.
+  - If you pass a function as `initialState`, it will be treated as an *initializer function*. It should be pure, should take no arguments, and should return a value of any type. React will call your initializer function when initializing the component, and store its return value as the initial state. [See an example below.](https://react.dev/reference/react/useState#avoiding-recreating-the-initial-state)
+
+ **Returns** 
+
+`useState` returns an array with exactly two values:
+
+1. The current state. During the first render, it will match the `initialState` you have passed.
+2. The [`set` function](https://react.dev/reference/react/useState#setstate) that lets you update the state to a different value and trigger a re-render.
+
+​			`set` functions, like `setSomething(nextState)`
+
+​			
+
+​			The `set` function returned by `useState` lets you update the state to a different value and trigger a re-render. You can pass the next state directly, or a function that calculates it from the previous state:
+
+```js
+const [name, setName] = useState('Edward');
+
+function handleClick() {
+  setName('Taylor');
+  setAge(a => a + 1);
+  // ...
+```
+
+**Parameters** 
+
+- **nextState**: The value that you want the state to be. It can be a value of any type, but there is a special behavior for functions.
+  - If you pass a function as `nextState`, it will be treated as an *updater function*. It must be pure, should take the pending state as its only argument, and should return the next state. React will put your updater function in a queue and re-render your component. During the next render, React will calculate the next state by applying all of the queued updaters to the previous state. [See an example below.](https://react.dev/reference/react/useState#updating-state-based-on-the-previous-state)
+
+**Returns** 
+
+`set` functions do not have a return value.
+
+
+
+
+
+
+
 
 
 
@@ -6544,8 +6849,8 @@ root.render(
 
 App.js
 
-```javascript
-import { NavLink, Routes, Route } from "react-router-dom"
+```jsx
+import { NavLink, Routes, Route, Navigate } from "react-router-dom"
 
 import About from "./pages/About";
 import Home from "./pages/Home";
@@ -6573,6 +6878,7 @@ function App() {
               <Routes>
                 <Route path="/about" element={<About />} />
                 <Route path="/home" element={<Home />} />
+                <Route path="/" element={<Navigate to="/about" />} />
               </Routes>
             </div>
           </div>
@@ -6583,6 +6889,7 @@ function App() {
 }
 
 export default App;
+
 ```
 
 
@@ -6606,13 +6913,21 @@ export default function About() {
 Home
 
 ```jsx
-import React from 'react'
+import React, { useState } from 'react'
+
+import { Navigate } from 'react-router-dom'
 
 export default function Home() {
+    const [sum, setSum] = useState(1);
     return (
-        <h3>我是Home的内容</h3>
+        <div>
+            <h3>我是Home的内容</h3>
+            {sum === 2 ? <Navigate to={'/about'} replace /> : <h4>当前sum的值是:{sum}</h4>}
+            <button onClick={() => setSum(2)}>点我将sum变为2</button>
+        </div>
     )
 }
+
 ```
 
 
@@ -6654,6 +6969,962 @@ export default function Home() {
 
 
 
+
+###### review:
+
+1.Routes:
+
+​			React router 6 删除了Switch增加了Routes，Routes必须包裹Route否则报错。
+
+​			Routes的匹配功能几乎和Switch一致。
+
+2.Route:
+
+​			<Route caseSensitive>属性用于指定陪陪是否区分大小写(默认为false)
+
+​			<Route>可以嵌套使用，且可以配合useRoute()配置路由表,但需要通过<Outlet>组件来渲染其子路由
+
+
+
+3.Navigate:
+
+​			React router 6 删除了Redirect增加了Navigate，功能几乎没有变化。
+
+​			
+
+​			A `<Navigate>` element changes the current location when it is rendered. 
+
+
+
+
+
+#### 自定义NavLink样式
+
+
+
+在 React Router 6 中不能用activeClassName来动态追加样式，而需要用函数来实现自定义功能
+
+
+
+The `className` prop works like a normal className, but you can also pass it a function to customize the classNames applied based on the active and pending state of the link.
+
+
+
+```jsx
+import { NavLink, Routes, Route, Navigate } from "react-router-dom"
+
+import About from "./pages/About";
+import Home from "./pages/Home";
+
+
+function App() {
+  function getClassName({ isActive }) {
+    return isActive ? 'list-group-item active_orange' : 'list-group-item'
+  }
+
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <div className="page-header"><h2>React Router Demo</h2></div>
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 路由链接 */}
+            <NavLink className={getClassName}
+              to="/about">
+              About
+            </NavLink>
+            <NavLink className={getClassName}
+              to="/home">
+              Home
+            </NavLink>
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              <Routes>
+                <Route path="/about" element={<About />} />
+                <Route path="/home" element={<Home />} />
+                <Route path="/" element={<Navigate to="/about" />} />
+              </Routes>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+
+
+#### useRoute
+
+
+
+The `useRoutes` hook is the functional equivalent of `<Route>`, but it uses JavaScript objects instead of `<Route>` elements to define your routes. These objects have the same properties as normal `<Route>` elements, but they don't require JSX.
+
+The return value of `useRoutes` is either a valid React element you can use to render the route tree, or `null` if nothing matched.
+
+
+
+
+
+newDir(
+
+scr--->routes--->index.js
+
+)
+
+
+
+routes
+
+```js
+import About from "../pages/About";
+import Home from "../pages/Home";
+
+import { Navigate } from "react-router-dom"
+
+export default [
+    { path: '/about', element: <About /> },
+    { path: '/home', element: <Home /> },
+    { path: '/', element: <Navigate to='/about' /> }
+]
+```
+
+
+
+App.js
+
+```jsx
+import { NavLink, useRoutes } from "react-router-dom"
+
+import routes from "./routes";
+
+function App() {
+  function getClassName({ isActive }) {
+    return isActive ? 'list-group-item active_orange' : 'list-group-item'
+  }
+
+  // 根据路由表生成对应的路由规则
+  const element = useRoutes(routes);
+  // console.log('element:', element);
+
+  return (
+    <div>
+      <div className="row">
+        <div className="col-xs-offset-2 col-xs-8">
+          <div className="page-header"><h2>React Router Demo</h2></div>
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-xs-2 col-xs-offset-2">
+          <div className="list-group">
+            {/* 路由链接 */}
+            <NavLink className={getClassName}
+              to="/about">
+              About
+            </NavLink>
+            <NavLink className={getClassName}
+              to="/home">
+              Home
+            </NavLink>
+          </div>
+        </div>
+        <div className="col-xs-6">
+          <div className="panel">
+            <div className="panel-body">
+              {/* 注册路由 */}
+              {
+                element
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+
+
+
+
+#### nested route
+
+
+
+newDir(
+
+Home--->Message--->index.jsx
+
+Home--->News--->index.jsx
+
+)
+
+
+
+News
+
+```jsx
+import React from 'react'
+
+export default function News() {
+    return (
+        <ul>
+            <li>news001</li>
+            <li>news002</li>
+            <li>news003</li>
+        </ul>
+    )
+}
+```
+
+
+
+Message
+
+```jsx
+import React from 'react'
+
+export default function Message() {
+    return (
+        <div>
+            <ul>
+                <li>
+                    <a href="/message1">message001</a>&nbsp;&nbsp;
+                </li>
+                <li>
+                    <a href="/message2">message002</a>&nbsp;&nbsp;
+                </li>
+                <li>
+                    <a href="/message/3">message003</a>&nbsp;&nbsp;
+                </li>
+            </ul>
+        </div>
+    )
+}
+```
+
+
+
+
+
+routes
+
+```js
+import About from "../pages/About";
+import Home from "../pages/Home";
+import Message from "../pages/Home/Message";
+import News from "../pages/Home/News";
+
+import { Navigate } from "react-router-dom"
+
+export default [
+    { path: '/about', element: <About /> },
+    {
+        path: '/home', element: <Home />, children: [
+            { path: 'news', element: <News /> },
+            { path: 'message', element: <Message /> }
+        ]
+    },
+    { path: '/', element: <Navigate to='/about' /> }
+]
+```
+
+
+
+在路由对象中再指定children，为其子路由，子路由的path为相对路径，不可为绝对路径(路径前不能加/)。
+
+
+
+
+
+Home
+
+```jsx
+import React, { useState } from 'react'
+
+import { NavLink, Outlet } from 'react-router-dom'
+
+export default function Home() {
+    return (
+        <div>
+            <h2>Home组件内容</h2>
+            <div>
+                <ul className="nav nav-tabs">
+                    <li>
+                        <NavLink className="list-group-item" to="./news">News</NavLink>
+                    </li>
+                    <li>
+                        <NavLink className="list-group-item " to="message">Message</NavLink>
+                    </li>
+                </ul>
+                {/* 指定路由组件呈现的位置 */}
+                <Outlet />
+            </div>
+        </div>
+    )
+}
+```
+
+
+
+
+
+An `<Outlet>` should be used in parent route elements to render their child route elements. This allows nested UI to show up when child routes are rendered. If the parent route matched exactly, it will render a child index route or nothing if there is no index route.
+
+
+
+
+
+
+
+##### **如果想在Home子路由里高亮，而让Home取消高亮**
+
+```jsx
+<NavLink className={getClassName} end to="/home">Home</NavLink>
+```
+
+
+
+The `end` prop changes the matching logic for the `active` and `pending` states to only match to the "end" of the NavLink's `to` path. If the URL is longer than `to`, it will no longer be considered active.
+
+
+
+
+
+
+
+#### 路由传参
+
+
+
+##### 1.params
+
+
+
+Message
+
+```jsx
+import React, { useState } from 'react'
+
+import { Link, Outlet } from 'react-router-dom'
+
+export default function Message() {
+    const [messages] = useState([
+        { id: '001', title: 'message1', content: 'hello' },
+        { id: '002', title: 'message2', content: 'good' },
+        { id: '003', title: 'message3', content: 'nice' },
+        { id: '004', title: 'message4', content: 'well well' }
+    ])
+
+    return (
+        <div>
+            <ul>
+                {
+                    messages.map((msg) => {
+                        return (
+                            // 路由链接
+                            <li key={msg.id}>
+                                <Link to={`detail/${msg.id}/${msg.title}/${msg.content}`}>{msg.title}</Link>
+                            </li>
+                        )
+                    })
+                }
+            </ul>
+            <hr />
+            {/* 指定路由组件的展示位置 */}
+            <Outlet />
+        </div>
+    )
+}
+```
+
+
+
+
+
+routes
+
+```js
+import About from "../pages/About";
+import Home from "../pages/Home";
+import Message from "../pages/Home/Message";
+import News from "../pages/Home/News";
+import Detail from "../pages/Home/Message/Detail";
+
+import { Navigate } from "react-router-dom"
+
+export default [
+    { path: '/about', element: <About /> },
+    {
+        path: '/home', element: <Home />, children: [
+            { path: 'news', element: <News /> },
+            {
+                path: 'message', element: <Message />, children: [
+                    { path: 'detail/:id/:title/:content', element: <Detail /> }
+                ]
+            }
+        ]
+    },
+    { path: '/', element: <Navigate to='/about' /> }
+]
+```
+
+
+
+
+
+Detail
+
+```jsx
+import React from 'react'
+
+import { useParams, useMatch } from 'react-router-dom'
+
+export default function Detail() {
+    const { id, title, content } = useParams();
+    // const match = useMatch('/home/message/detail/:id/:title/:content');
+    // console.log(match);
+    return (
+        <ul>
+            <li>消息编号：{id}</li>
+            <li>消息标题：{title}</li>
+            <li>消息内容：{content}</li>
+        </ul>
+    )
+}
+```
+
+
+
+##### 2.searchParams
+
+
+
+
+
+The `useSearchParams` hook is used to read and modify the query string in the URL for the current location. Like React's own [`useState` hook](https://react.dev/reference/react/useState), `useSearchParams` returns an array of two values: the current location's [search params](https://developer.mozilla.org/en-US/docs/Web/API/URL/searchParams) and a function that may be used to update them. Just as React's [`useState` hook](https://react.dev/reference/react/useState), `setSearchParams` also supports [functional updates](https://reactjs.org/docs/hooks-reference.html#functional-updates). Therefore, you may provide a function that takes a `searchParams` and returns an updated version.
+
+
+
+
+
+
+
+The **`searchParams`** readonly property of the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) interface returns a [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) object allowing access to the [`GET`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET) decoded query arguments contained in the URL.
+
+
+
+
+
+使用useSearchParams()的到的searchParams是一个URLSearchPrams实例对象，其prototype上有get()
+
+
+
+![](./img/searchParams.png) 
+
+
+
+
+
+
+
+Message
+
+```jsx
+import React, { useState } from 'react'
+
+import { Link, Outlet } from 'react-router-dom'
+
+export default function Message() {
+    const [messages] = useState([
+        { id: '001', title: 'message1', content: 'hello' },
+        { id: '002', title: 'message2', content: 'good' },
+        { id: '003', title: 'message3', content: 'nice' },
+        { id: '004', title: 'message4', content: 'well well' }
+    ])
+
+    return (
+        <div>
+            <ul>
+                {
+                    messages.map((msg) => {
+                        return (
+                            // 路由链接
+                            <li key={msg.id}>
+                                <Link to={`detail?id=${msg.id}&title=${msg.title}&content=${msg.content}`}>{msg.title}</Link>
+                            </li>
+                        )
+                    })
+                }
+            </ul>
+            <hr />
+            {/* 指定路由组件的展示位置 */}
+            <Outlet />
+        </div>
+    )
+}
+```
+
+
+
+routes
+
+```js
+import About from "../pages/About";
+import Home from "../pages/Home";
+import Message from "../pages/Home/Message";
+import News from "../pages/Home/News";
+import Detail from "../pages/Home/Message/Detail";
+
+import { Navigate } from "react-router-dom"
+
+export default [
+    { path: '/about', element: <About /> },
+    {
+        path: '/home', element: <Home />, children: [
+            { path: 'news', element: <News /> },
+            {
+                path: 'message', element: <Message />, children: [
+                    { path: 'detail', element: <Detail /> }
+                ]
+            }
+        ]
+    },
+    { path: '/', element: <Navigate to='/about' /> }
+]
+```
+
+
+
+searchParams不需要在路由路径中占位
+
+
+
+
+
+Detail
+
+```jsx
+import React from 'react'
+
+import { useSearchParams } from 'react-router-dom'
+
+export default function Detail() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const id = searchParams.get('id');
+    const title = searchParams.get('title');
+    const content = searchParams.get('content');
+    return (
+        <ul>
+            <li ><button onClick={() => { setSearchParams('id=008&title=haha&content=xixi') }}>点我更新一下收到的search参数</button></li>
+            <li>消息编号：{id}</li>
+            <li>消息标题：{title}</li>
+            <li>消息内容：{content}</li>
+        </ul>
+    )
+}
+
+```
+
+
+
+setSearchParams用于更新收到的searchParams
+
+
+
+![](./img/setSearchParams.png) 
+
+
+
+
+
+可以看到只是替换了?后面的 the parameters of the URL
+
+
+
+
+
+##### 3.stateParams
+
+
+
+
+
+
+
+Message
+
+```jsx
+import React, { useState } from 'react'
+
+import { Link, Outlet } from 'react-router-dom'
+
+export default function Message() {
+    const [messages] = useState([
+        { id: '001', title: 'message1', content: 'hello' },
+        { id: '002', title: 'message2', content: 'good' },
+        { id: '003', title: 'message3', content: 'nice' },
+        { id: '004', title: 'message4', content: 'well well' }
+    ])
+
+    return (
+        <div>
+            <ul>
+                {
+                    messages.map((msg) => {
+                        return (
+                            // 路由链接
+                            <li key={msg.id}>
+                                <Link to="detail"
+                                    state={{
+                                        id: msg.id,
+                                        title: msg.title,
+                                        content: msg.content
+                                    }}>
+                                    {msg.title}
+                                </Link>
+                            </li>
+                        )
+                    })
+                }
+            </ul>
+            <hr />
+            {/* 指定路由组件的展示位置 */}
+            <Outlet />
+        </div>
+    )
+}
+```
+
+
+
+
+
+routes
+
+```js
+import About from "../pages/About";
+import Home from "../pages/Home";
+import Message from "../pages/Home/Message";
+import News from "../pages/Home/News";
+import Detail from "../pages/Home/Message/Detail";
+
+import { Navigate } from "react-router-dom"
+
+export default [
+    { path: '/about', element: <About /> },
+    {
+        path: '/home', element: <Home />, children: [
+            { path: 'news', element: <News /> },
+            {
+                path: 'message', element: <Message />, children: [
+                    { path: 'detail', element: <Detail /> }
+                ]
+            }
+        ]
+    },
+    { path: '/', element: <Navigate to='/about' /> }
+]
+```
+
+
+
+
+
+Detail
+
+```jsx
+import React from 'react'
+
+import { useLocation } from 'react-router-dom'
+
+export default function Detail() {
+    const { state: { id, title, content } } = useLocation();
+    return (
+        <ul>
+            <li>消息编号：{id}</li>
+            <li>消息标题：{title}</li>
+            <li>消息内容：{content}</li>
+        </ul>
+    )
+}
+```
+
+
+
+
+
+
+
+#### 编程式路由导航
+
+
+
+newDir(
+
+src--->components--->Header--->index.jsx
+
+)
+
+
+
+Message
+
+```jsx
+import React, { useState } from 'react'
+
+import { Link, Outlet, useNavigate } from 'react-router-dom'
+
+export default function Message() {
+    const navigate = useNavigate();
+
+    const [messages] = useState([
+        { id: '001', title: 'message1', content: 'hello' },
+        { id: '002', title: 'message2', content: 'good' },
+        { id: '003', title: 'message3', content: 'nice' },
+        { id: '004', title: 'message4', content: 'well well' }
+    ])
+    function showDetail(msg) {
+        navigate('detail', {
+            replace: false,
+            state: {
+                id: msg.id,
+                title: msg.title,
+                content: msg.content
+            }
+        });
+    }
+
+    return (
+        <div>
+            <ul>
+                {
+                    messages.map((msg) => {
+                        return (
+                            // 路由链接
+                            <li key={msg.id}>
+                                <Link to="detail"
+                                    state={{
+                                        id: msg.id,
+                                        title: msg.title,
+                                        content: msg.content
+                                    }}>
+                                    {msg.title}
+                                </Link>
+                                <button onClick={() => showDetail(msg)}>查看详情</button>
+                            </li>
+                        )
+                    })
+                }
+            </ul>
+            <hr />
+            {/* 指定路由组件的展示位置 */}
+            <Outlet />
+        </div>
+    )
+}
+```
+
+
+
+Header
+
+```jsx
+import React from 'react'
+
+import { useNavigate } from 'react-router-dom'
+
+export default function Header() {
+    const navigate = useNavigate();
+    function back() {
+        navigate(-1);
+    }
+    function forward() {
+        navigate(1);
+    }
+    return (
+        <div className="col-xs-offset-2 col-xs-8">
+            <div className="page-header">
+                <h2>React Router Demo</h2>
+                <button onClick={back}>←后退</button>
+                <button onClick={forward}>前进→</button>
+            </div>
+        </div>
+    )
+}
+```
+
+
+
+
+
+The `navigate` function has two signatures:
+
+- Either pass a `To` value (same type as `<Link to>`) with an optional second `options` argument (similar to the props you can pass to `<Link>`, or
+- Pass the delta you want to go in the history stack. For example, `navigate(-1)` is equivalent to hitting the back button
+
+
+
+
+
+
+
+#### Hooks
+
+
+
+##### 1.useInRouterContext
+
+
+
+The `useInRouterContext` hooks returns `true` if the component is being rendered in the context of a `<Router>`, `false` otherwise. This can be useful for some 3rd-party extensions that need to know if they are being rendered in the context of a React Router app.
+
+
+
+Demo
+
+```jsx
+import React from 'react'
+
+import { useInRouterContext } from 'react-router-dom'
+
+export default function Demo() {
+    console.log('Demo InRouterContext:', useInRouterContext());
+    return (
+        <div>Demo</div>
+    )
+}
+```
+
+
+
+index.js
+
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+import Demo from './components/Demo';
+
+import { BrowserRouter } from 'react-router-dom'
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <div>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+    <Demo></Demo>
+  </div>
+);
+```
+
+
+
+ ![](./img/useInRouterContext.png)
+
+
+
+##### 2.useNavigationType
+
+This hook returns the current type of navigation or how the user came to the current page; either via a pop, push, or replace action on the history stack.
+
+
+
+##### 3.useOutlet
+
+Returns the element for the child route at this level of the route hierarchy. 
+
+This hook is used internally by `<Outelet>` to render child routes.
+
+
+
+如果嵌套路由没有挂载，则返回null
+
+如果嵌套路由已经挂载，则展示嵌套路由的对象
+
+```jsx
+import React, { useState } from 'react'
+
+import { NavLink, Outlet, useOutlet } from 'react-router-dom'
+
+export default function Home() {
+    console.log('useOutlet:', useOutlet());
+    return (
+        <div>
+            <h2>Home组件内容</h2>
+            <div>
+                <ul className="nav nav-tabs">
+                    <li>
+                        <NavLink replace className="list-group-item" to="./news">News</NavLink>
+                    </li>
+                    <li>
+                        <NavLink className="list-group-item " to="message">Message</NavLink>
+                    </li>
+                </ul>
+                {/* 指定路由组件呈现的位置 */}
+                {/* <Outlet /> */}
+                {
+                    useOutlet()
+                }
+            </div>
+        </div>
+    )
+}
+```
+
+
+
+##### 4.useResolvedPath
+
+
+
+This hook resolves the `pathname` of the location in the given `to` value against the pathname of the current location.
+
+
+
+
+
+News
+
+```jsx
+import React from 'react'
+
+import { useNavigationType, useResolvedPath } from 'react-router-dom'
+
+export default function News() {
+    // console.log(useNavigationType());
+    console.log('useResolvedPath:', useResolvedPath('/user?id=001&name=tom#qwe'));
+    return (
+        <ul>
+            <li>news001</li>
+            <li>news002</li>
+            <li>news003</li>
+        </ul>
+    )
+}
+```
+
+
+
+![](./img/useResolvedPath.png) 
 
 
 
