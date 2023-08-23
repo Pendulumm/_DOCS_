@@ -6702,7 +6702,7 @@ You need to return a [Promise](https://developer.mozilla.org/en-US/docs/Web/Java
 
 
 
-##### State Hooks
+##### State Hook
 
 *State* lets a component [“remember” information like user input.](https://react.dev/learn/state-a-components-memory) For example, a form component can use state to store the input value, while an image gallery component can use state to store the selected image index.
 
@@ -6764,6 +6764,397 @@ function handleClick() {
 `set` functions do not have a return value.
 
 
+
+
+
+Hooks_
+
+```jsx
+// 类式组件
+
+/* import React, { Component } from 'react'
+
+export default class Hooks_ extends Component {
+
+    state = { count: 0 };
+
+    add = () => {
+        this.setState(prevState => ({ count: prevState.count + 1 }))
+    }
+
+    render() {
+        return (
+            <div>
+                <h2>当前求和为{this.state.count}</h2>
+                <button onClick={this.add}>点我+1</button>
+            </div>
+        )
+    }
+}
+ */
+
+import React from 'react'
+
+export default function Hooks_() {
+    // console.log('rendered...');
+
+    // 不会因为再次调用useState，让initialState覆盖解构的state
+    const [count, setCount] = React.useState(0)
+    const [name, setName] = React.useState('tom')
+
+    function add() {
+        // setCount(count + 1)
+        setCount(count => count + 1)
+    }
+    function changeName() {
+        setName('Jerry')
+    }
+
+    return (
+        <div>
+            <h2>当前求和为{count}</h2>
+            <h2>我的名字是: {name}</h2>
+            <button onClick={add}>点我+1</button>
+            <button onClick={changeName}>点我改名</button>
+        </div>
+    )
+}
+```
+
+
+
+##### Effect Hook
+
+
+
+###### useEffect
+
+
+
+`useEffect(setup, dependencies?)`
+
+Call `useEffect` at the top level of your component to declare an Effect
+
+
+
+**Parameters** 
+
+- `setup`: The function with your Effect’s logic. Your setup function may also optionally return a *cleanup* function. When your component is added to the DOM, React will run your setup function. After every re-render with changed dependencies, React will first run the cleanup function (if you provided it) with the old values, and then run your setup function with the new values. After your component is removed from the DOM, React will run your cleanup function.
+- **optional** `dependencies`: The list of all reactive values referenced inside of the `setup` code. Reactive values include props, state, and all the variables and functions declared directly inside your component body. If your linter is [configured for React](https://react.dev/learn/editor-setup#linting), it will verify that every reactive value is correctly specified as a dependency. The list of dependencies must have a constant number of items and be written inline like `[dep1, dep2, dep3]`. React will compare each dependency with its previous value using the [`Object.is`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is) comparison. If you omit this argument, your Effect will re-run after every re-render of the component. [See the difference between passing an array of dependencies, an empty array, and no dependencies at all.](https://react.dev/reference/react/useEffect#examples-dependencies)
+
+**Returns** 
+
+`useEffect` returns `undefined`.
+
+
+
+
+
+Hooks_
+
+```jsx
+// 类式组件
+
+/* import React, { Component } from 'react'
+import root from '../../index'
+
+export default class Hooks_ extends Component {
+
+    state = { count: 0 };
+
+    componentDidMount() {
+        this.timer = setInterval(() => {
+            this.setState((prevState) => {
+                return { count: prevState.count + 1 }
+            })
+            console.log('###');
+        }, 1000);
+    }
+    componentWillUnmount() {
+        clearInterval(this.timer)
+    }
+
+    add = () => {
+        this.setState(prevState => ({ count: prevState.count + 1 }))
+    }
+    unmount = () => {
+        root.unmount();
+    }
+
+    render() {
+        return (
+            <div>
+                <h2>当前求和为{this.state.count}</h2>
+                <button onClick={this.add}>点我+1</button>
+                <button onClick={this.unmount}>卸载组件</button>
+            </div>
+        )
+    }
+} */
+
+
+import React from 'react'
+import root from '../../index'
+
+export default function Hooks_() {
+    // console.log('rendered...');
+
+    // 不会因为再次调用useState，让initialState覆盖解构的state
+    const [count, setCount] = React.useState(0)
+    const [name, setName] = React.useState('tom')
+
+    // React.useEffect(() => {
+    //     console.log('###');
+    //     // 相当于 componentDidMount 和 componentDidUpdate
+    //     // 没有[]作为第二个参数，所有状态发生改变的时候，本回调都会执行
+
+    //     // setInterval(() => {
+    //     //     setCount(count => count + 1)
+    //     // }, 1000);
+    // })
+    React.useEffect(() => {
+        console.log('###');
+        //相当于 componentDidMount
+        // []意味着什么状态都不监测
+
+        let timer = setInterval(() => {
+            setCount(count => count + 1)
+            console.log('interval###');
+        }, 1000);
+
+        // 返回的函数相当于componentWillUnmount
+        return () => {
+            // console.log('componentWillUnmount');
+            clearInterval(timer);
+        }
+    }, [])
+    // React.useEffect(() => {
+    //     console.log('###');
+    //     // 首次调用相当于 componentDidMount
+    //     // [count]意味着监测count(状态)的改变
+    // }, [count])
+    // React.useEffect(() => {
+    //     if (name != 'tom') {
+    //         setInterval(() => {
+    //             setCount(count => count + 1)
+    //         }, 1000);
+    //     }
+    // }, [name])
+
+    function add() {
+        // setCount(count + 1)
+        setCount(count => count + 1)
+    }
+    function changeName() {
+        setName('Jack')
+    }
+    function unmount() {
+        // 卸载组件的回调
+        root.unmount();
+    }
+
+    return (
+        <div>
+            <h2>当前求和为{count},
+                <span>名字为{name}</span>
+            </h2>
+            <button onClick={add}>点我+1</button>
+            <button onClick={changeName}>点我改名</button>
+            <button onClick={unmount}>卸载组件</button>
+        </div>
+    )
+}
+```
+
+
+
+
+
+##### Ref Hook
+
+
+
+###### useRef
+
+
+
+`useRef(initialValue)` 
+
+
+
+**Parameters** 
+
+- `initialValue`: The value you want the ref object’s `current` property to be initially. It can be a value of any type. This argument is ignored after the initial render.
+
+**Returns** 
+
+`useRef` returns an object with a single property:
+
+- `current`: Initially, it’s set to the `initialValue` you have passed. You can later set it to something else. If you pass the ref object to React as a `ref` attribute to a JSX node, React will set its `current` property.
+
+On the next renders, `useRef` will return the same object.
+
+
+
+Hooks_
+
+```jsx
+// 类式组件
+
+/* import React, { Component } from 'react'
+import root from '../../index'
+
+export default class Hooks_ extends Component {
+
+    state = { count: 0 };
+
+    myRef = React.createRef();
+
+    componentDidMount() {
+        this.timer = setInterval(() => {
+            this.setState((prevState) => {
+                return { count: prevState.count + 1 }
+            })
+            console.log('###');
+        }, 1000);
+    }
+    componentWillUnmount() {
+        clearInterval(this.timer)
+    }
+
+    add = () => {
+        this.setState(prevState => ({ count: prevState.count + 1 }))
+    }
+    unmount = () => {
+        root.unmount();
+    }
+    show = () => {
+        alert(this.myRef.current.value);
+    }
+
+    render() {
+        return (
+            <div>
+                <input type="text" ref={this.myRef} />
+                <h2>当前求和为{this.state.count}</h2>
+                <button onClick={this.add}>点我+1</button>
+                <button onClick={this.unmount}>卸载组件</button>
+                <button onClick={this.show}>点击提示数据</button>
+            </div>
+        )
+    }
+} */
+
+
+import React from 'react'
+import root from '../../index'
+
+export default function Hooks_() {
+    // console.log('rendered...');
+
+    // 不会因为再次调用useState，让initialState覆盖解构的state
+    const [count, setCount] = React.useState(0)
+    const [name, setName] = React.useState('tom')
+    const myRef = React.useRef();
+
+    // React.useEffect(() => {
+    //     console.log('###');
+    //     // 相当于 componentDidMount 和 componentDidUpdate
+    //     // 没有[]作为第二个参数，所有状态发生改变的时候，本回调都会执行
+
+    //     // setInterval(() => {
+    //     //     setCount(count => count + 1)
+    //     // }, 1000);
+    // })
+    React.useEffect(() => {
+        console.log('###');
+        //相当于 componentDidMount
+        // []意味着什么状态都不监测
+
+        let timer = setInterval(() => {
+            setCount(count => count + 1)
+            console.log('interval###');
+        }, 1000);
+
+        // 返回的函数相当于componentWillUnmount
+        return () => {
+            // console.log('componentWillUnmount');
+            clearInterval(timer);
+        }
+    }, [])
+    // React.useEffect(() => {
+    //     console.log('###');
+    //     // 首次调用相当于 componentDidMount
+    //     // [count]意味着监测count(状态)的改变
+    // }, [count])
+    // React.useEffect(() => {
+    //     if (name != 'tom') {
+    //         setInterval(() => {
+    //             setCount(count => count + 1)
+    //         }, 1000);
+    //     }
+    // }, [name])
+
+    function add() {
+        // setCount(count + 1)
+        setCount(count => count + 1)
+    }
+    function changeName() {
+        setName('Jack')
+    }
+    function unmount() {
+        // 卸载组件的回调
+        root.unmount();
+    }
+    function show() {
+        // 提示输入的回调
+        alert(myRef.current.value)
+    }
+
+    return (
+        <div>
+            <input type="text" ref={myRef} />
+            <h2>当前求和为{count},
+                <span>名字为{name}</span>
+            </h2>
+            <button onClick={add}>点我+1</button>
+            <button onClick={changeName}>点我改名</button>
+            <button onClick={unmount}>卸载组件</button>
+            <button onClick={show}>点我提示数据</button>
+        </div>
+    )
+}
+```
+
+
+
+## 4.Fragment
+
+
+
+
+
+### `<Fragment>` 
+
+Wrap elements in `<Fragment>` to group them together in situations where you need a single element. Grouping elements in `Fragment` has no effect on the resulting DOM; it is the same as if the elements were not grouped. The empty JSX tag `<></>` is shorthand for `<Fragment></Fragment>` in most cases.
+
+#### Props 
+
+- **optional** `key`: Fragments declared with the explicit `<Fragment>` syntax may have [keys.](https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key)
+
+#### Caveats 
+
+- If you want to pass `key` to a Fragment, you can’t use the `<>...</>` syntax. You have to explicitly import `Fragment` from `'react'` and render `<Fragment key={yourKey}>...</Fragment>`.
+
+- React does not [reset state](https://react.dev/learn/preserving-and-resetting-state) when you go from rendering `<><Child /></>` to `[<Child />]` or back, or when you go from rendering `<><Child /></>` to `<Child />` and back.
+
+  This only works a single level deep: for example, going from `<><><Child /></></>` to `<Child />` resets the state. See the precise semantics [here.](https://gist.github.com/clemmy/b3ef00f9507909429d8aa0d3ee4f986b)
+
+
+
+
+
+**注**: <Fragment>只能拥有 key 属性
 
 
 
