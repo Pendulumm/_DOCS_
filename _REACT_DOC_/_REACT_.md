@@ -7158,6 +7158,399 @@ Wrap elements in `<Fragment>` to group them together in situations where you nee
 
 
 
+## 5.Context
+
+
+
+常用于祖组件与后代组件之间的通信
+
+
+
+### 1.createContext and contextType
+
+
+
+```jsx
+import React, { Component, Fragment } from 'react'
+import './index.css'
+
+// 创建Context对象
+const MyContext = React.createContext()
+
+export default class Context_ extends Component {
+    state = {
+        username: 'tom',
+        age: 18
+    };
+
+    render() {
+        const { username, age } = this.state;
+
+        return (
+            <div className='parent'>
+                <h3>top component</h3>
+                <h4>username:{username}</h4>
+                <MyContext.Provider value={this.state}>
+                    <B />
+                </MyContext.Provider>
+            </div>
+        )
+    }
+}
+
+class B extends Component {
+    render() {
+        return (
+            <div className='child'>
+                <h3>component B</h3>
+                {/* <h4>props from top---username:</h4> */}
+                <C />
+            </div>
+        )
+    }
+}
+class C extends Component {
+    static contextType = MyContext;
+    // contextType = MyContext;    // contextType was defined as an instance property on C. Use a static property to define contextType instead.
+    render() {
+        console.log('Component C:', this);
+        return (
+            <div className='grandson'>
+                <h3>component C</h3>
+                <h4>props from B---username:{this.context.username}</h4>
+            </div>
+        )
+    }
+}
+```
+
+
+
+
+
+```typescript
+ class Component<P, S> {
+        
+        static contextType?: Context<any> | undefined;
+        ...
+}
+```
+
+```typescript
+interface Context<T> {
+        Provider: Provider<T>;
+        Consumer: Consumer<T>;
+        displayName?: string | undefined;
+}
+```
+
+
+
+注意:contextType不属于该类的属性，而属于继承自Component类里的静态属性
+
+
+
+
+
+![](./img/contextType.png) 
+
+
+
+如果强行在class C 中定义成员为contextType，可以看到contextType类型为Context
+
+```typescript
+function createContext<T>(
+        // If you thought this should be optional, see
+        // https://github.com/DefinitelyTyped/DefinitelyTyped/pull/24509#issuecomment-382213106
+        defaultValue: T,
+    ): Context<T>;
+```
+
+createContext返回值也是Context
+
+
+
+```typescript
+// Context via RenderProps
+    interface ProviderProps<T> {
+        value: T;
+        children?: ReactNode | undefined;
+    }
+
+    interface ConsumerProps<T> {
+        children: (value: T) => ReactNode;
+    }
+```
+
+
+
+
+
+注意: provider 的属性只有value和children
+
+
+
+#### 函数组件
+
+
+
+```jsx
+function C() {
+    return (
+        <div className='grandson'>
+            <h3>component C</h3>
+            <MyContext.Consumer>
+                {
+                    value => (
+                        <h4>props from B---username:{value.username},age:{value.age}</h4>
+                    )
+                }
+            </MyContext.Consumer>
+        </div>
+    )
+}
+```
+
+
+
+
+
+
+
+## 6.Optmize
+
+
+
+
+
+
+
+
+
+```jsx
+import React, { Component, PureComponent } from 'react'
+import './index.css'
+
+export default class Optimize_ extends PureComponent {
+
+    state = {
+        carName: 'benz c63',
+        stu: ['小张', '小李', '小王']
+    }
+
+    /* shouldComponentUpdate(nextProps, nextState) {
+        // console.log('nextProps>>>', nextProps, '---------', 'nextState>>> ', nextState);
+        // console.log('this.props>>>', this.props, '---------', 'this.state>>> ', this.state);
+        if (this.state.carName === nextState.carName) {
+            return false;
+        } else {
+            return true;
+        }
+    } */
+
+    changeCar = () => {
+        this.setState(
+            prevState => ({
+                carName: 'toyota'
+            })
+        )
+
+        /* let obj = this.state;
+        obj.carName = 'toyota';
+
+        // 这里setState的参数地址并没有发生变化
+        this.setState(obj); */
+    }
+    addPerson = () => {
+        const { stu } = this.state;
+        /* stu.unshift('小刘');
+        this.setState({ stu }); */
+        this.setState({ stu: ['小刘', ...stu] });
+    }
+
+    render() {
+        console.log('Parent redered');
+        const { carName } = this.state;
+        return (
+            <div className='parent'>
+                <h3>top component</h3>
+                <h4>{this.state.stu}</h4>
+                <span>car name:{carName}</span><br />
+                <button onClick={this.changeCar}>点我换车</button>
+                <button onClick={this.addPerson}>添加小刘</button>
+                <Child carName="xxx" />
+            </div>
+        )
+    }
+}
+
+class Child extends PureComponent {
+
+    /* shouldComponentUpdate(nextProps, nextState) {
+        console.log('nextProps>>>', nextProps);
+        console.log('this.props>>>', this.props);
+        return !this.props.carName === nextProps.carName
+    } */
+
+    render() {
+        console.log('Child redered');
+        return (
+            <div className='child'>
+                <h3>child component</h3>
+                <span>props---carName:{this.props.carName}</span>
+            </div>
+        )
+    }
+}
+```
+
+
+
+
+
+
+
+## 7.Render props
+
+
+
+
+
+向组件内部动态传入带内容的结构(标签)
+
+
+
+实质就是把一个回调作为该组件的prop，回调的返回值是一个新的组件
+
+
+
+```jsx
+import React, { Component } from 'react'
+import './index.css'
+import C from '../1_SetState'
+
+/*
+    <A children="Hello">
+        标签体内容是一个特殊的标签属性
+        Hello
+    </A>
+*/
+
+export default class RenderProps_ extends Component {
+    render() {
+        return (
+            <div className='parent'>
+                <h3>top component</h3>
+                <A render={(name) => <C name={name} />} />
+
+            </div>
+        )
+    }
+}
+
+class A extends Component {
+    state = { name: 'tom' };
+    render() {
+        console.log(this);
+        const { name } = this.state;
+        return (
+            <div className='a'>
+                <h3>A component</h3>
+                {/* {this.props.children} */}
+
+                {/* Vue---> slot */}
+                {this.props.render(name)}
+                {/* <B /> */}
+            </div>
+        )
+    }
+}
+
+class B extends Component {
+    render() {
+        // console.log('B rendered');
+        return (
+            <div className='b'>
+                <h3>B component</h3>
+                <h4>props---name:{this.props.name}</h4>
+            </div>
+        )
+    }
+}
+```
+
+
+
+
+
+
+
+## 8.Error Boundary
+
+
+
+
+
+打包
+
+```shell
+npm run build
+```
+
+本地部署
+
+```shell
+ npm install --global serve
+```
+
+
+
+
+
+只能捕获后代组件生命周期产生的错误，不能捕获自己组件产生的错误和其他组件在合成事件、定时器中产生的错误
+
+
+
+```jsx
+import React, { Component } from 'react'
+import Child from './Child'
+
+export default class Parent extends Component {
+    state = {
+        hasError: ''    // 用于标识子组件是否产生错误
+    }
+
+    // 当Parent的子组件出现报错时候，会触发getDerivedStateFromError的调用
+    static getDerivedStateFromError(error) {
+        console.log('getDerivedStateFromError>>>', error);
+        return { hasError: error }
+    }
+
+    componentDidCatch(error, errorInfo) {
+        // 可以统计错误次数，反馈给服务器，用于解决bug
+        console.log('error rendering component');
+        /* console.log('error>>>', error);
+        console.log('errorInfo>>>', errorInfo); */
+    }
+
+    render() {
+        return (
+            <div>
+                <h2>Parent Component</h2>
+                {/* 错误边界适用于生产环境，开发环境不适用 */}
+                {this.state.hasError ? <h2>当前网络不稳定，请稍候再试</h2> : <Child />}
+            </div>
+        )
+    }
+}
+```
+
+
+
+
+
+## 组件间通信方式
+
 
 
 
