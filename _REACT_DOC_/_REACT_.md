@@ -3001,7 +3001,9 @@ export default App;
 在index.html中
 
 ```tex
-因为./是相对路径，所以匹配的是在/about之前的路径，错误的把 "http://localhost:3000/xxx/" 匹配到 "/css/bootstrap"
+因为./是相对路径，所以匹配了错误的主机路径，
+错误的把 "http://localhost:3000/xxx/"当作host，把path匹配到 "css/bootstrap"
+也就是在存在路由跳转的情况下，资源路径不可为相对路径，只能为绝对路径
 ```
 
 1.

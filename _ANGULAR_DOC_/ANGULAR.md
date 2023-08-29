@@ -1523,3 +1523,645 @@ In a single-page app, you change what the user sees by showing or hiding portion
 To handle the navigation from one [view](https://angular.io/guide/glossary#view) to the next, you use the Angular **`Router`**. The **`Router`** enables navigation by interpreting a browser URL as an instruction to change the view.
 
 To explore a sample app featuring the router's primary features, see the [live example](https://angular.io/generated/live-examples/router/stackblitz.html) / [download example](https://angular.io/generated/zips/router/router.zip).
+
+
+
+### Common Routing Tasks
+
+This topic describes how to implement many of the common tasks associated with adding the Angular router to your application.
+
+
+
+<hr/>
+
+#### Generate an application with routing enabled
+
+The following command uses the Angular CLI to generate a basic Angular application with an application routing module, called `AppRoutingModule`, which is an NgModule where you can configure your routes. The application name in the following example is `routing-app`.
+
+```shell
+ng new routing-app --routing --defaults
+```
+
+##### Adding components for routing
+
+To use the Angular router, an application needs to have at least two components so that it can navigate from one to the other. To create a component using the CLI, enter the following at the command line where `first` is the name of your component:
+
+```shell
+ng generate component first
+```
+
+Repeat this step for a second component but give it a different name. Here, the new name is `second`.
+
+```shell
+ng generate component second
+```
+
+The CLI automatically appends `Component`, so if you were to write `first-component`, your component would be `FirstComponentComponent`.
+
+
+
+```
+<base href>
+This guide works with a CLI-generated Angular application. If you are working manually, make sure that you have `<base href="/">` in the `<head>` of your index.html file. This assumes that the `app` folder is the application root, and uses `"/"`.
+```
+
+
+
+
+
+##### Importing your new components
+
+To use your new components, import them into `AppRoutingModule` at the top of the file, as follows:
+
+( AppRoutingModule (excerpt) )
+
+```typescript
+import { FirstComponent } from './first/first.component';
+import { SecondComponent } from './second/second.component';
+```
+
+
+
+#### Defining a basic route
+
+There are three fundamental building blocks to creating a route.
+
+Import the `AppRoutingModule` into `AppModule` and add it to the `imports` array.
+
+The Angular CLI performs this step for you. However, if you are creating an application manually or working with an existing, non-CLI application, verify that the imports and configuration are correct. The following is the default `AppModule` using the CLI with the `--routing` flag.
+
+(Default CLI AppModule with routing)
+
+```typescript
+import { BrowserModule } from '@angular/platform-browser';
+import { NgModule } from '@angular/core';
+import { AppRoutingModule } from './app-routing.module'; // CLI imports AppRoutingModule
+import { AppComponent } from './app.component';
+
+@NgModule({
+  declarations: [
+    AppComponent
+  ],
+  imports: [
+    BrowserModule,
+    AppRoutingModule // CLI adds AppRoutingModule to the AppModule's imports array
+  ],
+  providers: [],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+```
+
+
+
+1. Import `RouterModule` and `Routes` into your routing module.
+
+   The Angular CLI performs this step automatically. The CLI also sets up a `Routes` array for your routes and configures the `imports` and `exports` arrays for `@NgModule()`.
+
+   (CLI application routing module)
+
+   ```typescript
+   import { NgModule } from '@angular/core';
+   import { Routes, RouterModule } from '@angular/router'; // CLI imports router
+   
+   const routes: Routes = []; // sets up routes constant where you define your routes
+   
+   // configures NgModule imports and exports
+   @NgModule({
+     imports: [RouterModule.forRoot(routes)],
+     exports: [RouterModule]
+   })
+   export class AppRoutingModule { }
+   ```
+
+   
+
+2. Define your routes in your `Routes` array.
+
+   1. Each route in this array is a JavaScript object that contains two properties. The first property, `path`, defines the URL path for the route. The second property, `component`, defines the component Angular should use for the corresponding path.
+
+   ​		(AppRoutingModule (excerpt))
+
+   ​		
+
+   ```typescript
+   const routes: Routes = [
+     { path: 'first-component', component: FirstComponent },
+     { path: 'second-component', component: SecondComponent },
+   ];
+   ```
+
+   
+
+3. Add your routes to your application.
+
+   Now that you have defined your routes, add them to your application. First, add links to the two components. Assign the anchor tag that you want to add the route to the `routerLink` attribute. Set the value of the attribute to the component to show when a user clicks on each link. Next, update your component template to include `<router-outlet>`. This element informs Angular to update the application view with the component for the selected route.
+
+​		(Template with routerLink and router-outlet)
+
+​		
+
+```html
+<h1>Angular Router App</h1>
+<!-- This nav gives you links to click, which tells the router which route to use (defined in the routes constant in  AppRoutingModule) -->
+<nav>
+  <ul>
+    <li><a routerLink="/first-component" routerLinkActive="active" ariaCurrentWhenActive="page">First Component</a></li>
+    <li><a routerLink="/second-component" routerLinkActive="active" ariaCurrentWhenActive="page">Second Component</a></li>
+  </ul>
+</nav>
+<!-- The routed views render in the <router-outlet>-->
+<router-outlet></router-outlet>
+```
+
+
+
+##### Route order
+
+The order of routes is important because the `Router` uses a first-match wins strategy when matching routes, so more specific routes should be placed above less specific routes. List routes with a static path first, followed by an empty path route, which matches the default route. The [wildcard route](https://angular.io/guide/router#setting-up-wildcard-routes) comes last because it matches every URL and the `Router` selects it only if no other routes match first.
+
+
+
+#### Getting route information
+
+Often, as a user navigates your application, you want to pass information from one component to another. For example, consider an application that displays a shopping list of grocery items. Each item in the list has a unique `id`. To edit an item, users click an Edit button, which opens an `EditGroceryItem` component. You want that component to retrieve the `id` for the grocery item so it can display the right information to the user.
+
+Use a route to pass this type of information to your application components. To do so, you use the [withComponentInputBinding](https://angular.io/api/router/withComponentInputBinding) feature with `provideRouter` or the `bindToComponentInputs` option of `RouterModule.forRoot`.
+
+
+
+To get information from a route:
+
+1. Add the `withComponentInputBinding` feature to the `provideRouter` method.
+
+   (provideRouter feature)
+
+   ```typescript
+   providers: [
+     provideRouter(appRoutes, withComponentInputBinding()),
+   ]
+   ```
+
+   
+
+2. Update the component to have an `Input` matching the name of the parameter.
+
+   ( The component input (excerpt) )
+
+   ```typescript
+   @Input()
+   set id(heroId: string) {
+     this.hero$ = this.service.getHero(heroId);
+   }
+   ```
+
+   
+
+#### Setting up wildcard routes
+
+A well-functioning application should gracefully handle when users attempt to navigate to a part of your application that does not exist. To add this functionality to your application, you set up a wildcard route. The Angular router selects this route any time the requested URL doesn't match any router paths.
+
+To set up a wildcard route, add the following code to your `routes` definition.
+
+
+
+( AppRoutingModule (excerpt) )
+
+```typescript
+{ path: '**', component: <component-name> }
+```
+
+The two asterisks, `**`, indicate to Angular that this `routes` definition is a wildcard route. For the component property, you can define any component in your application. Common choices include an application-specific `PageNotFoundComponent`, which you can define to [display a 404 page](https://angular.io/guide/router#404-page-how-to) to your users; or a redirect to your application's main component. A wildcard route is the last route because it matches any URL. For more detail on why order matters for routes, see [Route order](https://angular.io/guide/router#route-order).
+
+
+
+#### Displaying a 404 page
+
+To display a 404 page, set up a [wildcard route](https://angular.io/guide/router#wildcard-route-how-to) with the `component` property set to the component you'd like to use for your 404 page as follows:
+
+
+
+( AppRoutingModule (excerpt) )
+
+```typescript
+const routes: Routes = [
+  { path: 'first-component', component: FirstComponent },
+  { path: 'second-component', component: SecondComponent },
+  { path: '**', component: PageNotFoundComponent },  // Wildcard route for a 404 page
+];
+```
+
+The last route with the `path` of `**` is a wildcard route. The router selects this route if the requested URL doesn't match any of the paths earlier in the list and sends the user to the `PageNotFoundComponent`.
+
+
+
+#### Setting up redirects
+
+To set up a redirect, configure a route with the `path` you want to redirect from, the `component` you want to redirect to, and a `pathMatch` value that tells the router how to match the URL.
+
+
+
+( AppRoutingModule (excerpt) )
+
+```typescript
+const routes: Routes = [
+  { path: 'first-component', component: FirstComponent },
+  { path: 'second-component', component: SecondComponent },
+  { path: '',   redirectTo: '/first-component', pathMatch: 'full' }, // redirect to `first-component`
+  { path: '**', component: PageNotFoundComponent },  // Wildcard route for a 404 page
+];
+```
+
+In this example, the third route is a redirect so that the router defaults to the `first-component` route. Notice that this redirect precedes the wildcard route. Here, `path: ''` means to use the initial relative URL (`''`).
+
+For more details on `pathMatch` see [Spotlight on `pathMatch`](https://angular.io/guide/router-tutorial-toh#pathmatch).
+
+
+
+### Nesting routes
+
+As your application grows more complex, you might want to create routes that are relative to a component other than your root component. These types of nested routes are called **child routes**. This means you're adding a second `<router-outlet>` to your app, because it is in addition to the `<router-outlet>` in `AppComponent`.
+
+In this example, there are two additional child components, `child-a`, and `child-b`. Here, `FirstComponent` has its own `<nav>` and a second `<router-outlet>` in addition to the one in `AppComponent`.
+
+
+
+(In the template)
+
+```html
+<h2>First Component</h2>
+
+<nav>
+  <ul>
+    <li><a routerLink="child-a">Child A</a></li>
+    <li><a routerLink="child-b">Child B</a></li>
+  </ul>
+</nav>
+
+<router-outlet></router-outlet>
+```
+
+A child route is like any other route, in that it needs both a `path` and a `component`. The one difference is that you place child routes in a `children` array within the parent route.
+
+
+
+### Setting the page title
+
+Each page in your application should have a unique title so that they can be identified in the browser history. The `Router` sets the document's title using the `title` property from the `Route` config.
+
+
+
+( AppRoutingModule (excerpt) )
+
+```typescript
+const routes: Routes = [
+  {
+    path: 'first-component',
+    title: 'First component',
+    component: FirstComponent,  // this is the component with the <router-outlet> in the template
+    children: [
+      {
+        path: 'child-a',  // child route path
+        title: resolvedChildATitle,
+        component: ChildAComponent,  // child route component that the router renders
+      },
+      {
+        path: 'child-b',
+        title: 'child b',
+        component: ChildBComponent,  // another child route component that the router renders
+      },
+    ],
+  },
+];
+
+const resolvedChildATitle: ResolveFn<string> = () => Promise.resolve('child a');
+```
+
+
+
+### Using relative paths
+
+Relative paths let you define paths that are relative to the current URL segment. The following example shows a relative route to another component, `second-component`. `FirstComponent` and `SecondComponent` are at the same level in the tree, however, the link to `SecondComponent` is situated within the `FirstComponent`, meaning that the router has to go up a level and then into the second directory to find the `SecondComponent`. Rather than writing out the whole path to get to `SecondComponent`, use the `../` notation to go up a level.
+
+
+
+(In the template)
+
+```html
+<h2>First Component</h2>
+
+<nav>
+  <ul>
+    <li><a routerLink="../second-component">Relative Route to second component</a></li>
+  </ul>
+</nav>
+<router-outlet></router-outlet>
+```
+
+In addition to `../`, use `./` or no leading slash to specify the current level.
+
+
+
+##### Specifying a relative route
+
+To specify a relative route, use the `NavigationExtras` `relativeTo` property. In the component class, import `NavigationExtras` from the `@angular/router`.
+
+Then use `relativeTo` in your navigation method. After the link parameters array, which here contains `items`, add an object with the `relativeTo` property set to the `ActivatedRoute`, which is `this.route`.
+
+
+
+(RelativeTo)
+
+```typescript
+goToItems() {
+  this.router.navigate(['items'], { relativeTo: this.route });
+}
+```
+
+The `goToItems()` method interprets the destination URI as relative to the activated route and navigates to the `items` route.
+
+
+
+### Lazy loading
+
+You can configure your routes to lazy load modules, which means that Angular only loads modules as needed, rather than loading all modules when the application launches. Additionally, preload parts of your application in the background to improve the user experience.
+
+For more information on lazy loading and preloading see the dedicated guide [Lazy loading NgModules](https://angular.io/guide/lazy-loading-ngmodules).
+
+
+
+### Preventing unauthorized access
+
+Use route guards to prevent users from navigating to parts of an application without authorization. The following route guards are available in Angular:
+
+- [`canActivate`](https://angular.io/api/router/CanActivateFn)
+- [`canActivateChild`](https://angular.io/api/router/CanActivateChildFn)
+- [`canDeactivate`](https://angular.io/api/router/CanDeactivateFn)
+- [`canMatch`](https://angular.io/api/router/CanMatchFn)
+- [`resolve`](https://angular.io/api/router/ResolveFn)
+- [`canLoad`](https://angular.io/api/router/CanLoadFn)
+
+To use route guards, consider using [component-less routes](https://angular.io/api/router/Route#componentless-routes) as this facilitates guarding child routes.
+
+Create a file for your guard:
+
+```sh
+ng generate guard your-guard
+```
+
+In your guard file, add the guard functions you want to use. The following example uses `canActivateFn` to guard the route.
+
+( guard (excerpt) )
+
+```typescript
+export const yourGuardFunction: CanActivateFn = (
+    next: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot) => {
+      // your  logic goes here
+  }
+```
+
+In your routing module, use the appropriate property in your `routes` configuration. Here, `canActivate` tells the router to mediate navigation to this particular route.
+
+( Routing module (excerpt) )
+
+```typescript
+{
+path: '/your-path',
+component: YourComponent,
+canActivate: [yourGuardFunction],
+}
+```
+
+For more information with a working example, see the [routing tutorial section on route guards](https://angular.io/guide/router-tutorial-toh#milestone-5-route-guards).
+
+
+
+### Link parameters array
+
+A link parameters array holds the following ingredients for router navigation:
+
+- The path of the route to the destination component
+- Required and optional route parameters that go into the route URL
+
+Bind the `RouterLink` directive to such an array like this:
+
+( src/app/app.component.ts (h-anchor) )
+
+```typescript
+<a [routerLink]="['/heroes']">Heroes</a>
+```
+
+The following is a two-element array when specifying a route parameter:
+
+( src/app/heroes/hero-list/hero-list.component.html (nav-to-detail) )
+
+```typescript
+<a [routerLink]="['/hero', hero.id]">
+  <span class="badge">{{ hero.id }}</span>{{ hero.name }}
+</a>
+```
+
+Provide optional route parameters in an object, as in `{ foo: 'foo' }`:
+
+( src/app/app.component.ts (cc-query-params) )
+
+```typescript
+<a [routerLink]="['/crisis-center', { foo: 'foo' }]">Crisis Center</a>
+```
+
+...	__Pend__ 
+
+```http
+https://angular.io/guide/router#getting-route-information
+```
+
+
+
+
+
+
+
+## Forms
+
+
+
+### Introduction to forms in Angular
+
+Handling user input with forms is the cornerstone of many common applications. Applications use forms to enable users to log in, to update a profile, to enter sensitive information, and to perform many other data-entry tasks.
+
+Angular provides two different approaches to handling user input through forms: reactive and template-driven. Both capture user input events from the view, validate the user input, create a form model and data model to update, and provide a way to track changes.
+
+This guide provides information to help you decide which type of form works best for your situation. It introduces the common building blocks used by both approaches. It also summarizes the key differences between the two approaches, and demonstrates those differences in the context of setup, data flow, and testing.
+
+
+
+### Choosing an approach
+
+Reactive forms and template-driven forms process and manage form data differently. Each approach offers different advantages.
+
+| FORMS                 | DETAILS                                                      |
+| :-------------------- | :----------------------------------------------------------- |
+| Reactive forms        | Provide direct, explicit access to the underlying form's object model. Compared to template-driven forms, they are more robust: they're more scalable, reusable, and testable. If forms are a key part of your application, or you're already using reactive patterns for building your application, use reactive forms. |
+| Template-driven forms | Rely on directives in the template to create and manipulate the underlying object model. They are useful for adding a simple form to an app, such as an email list signup form. They're straightforward to add to an app, but they don't scale as well as reactive forms. If you have very basic form requirements and logic that can be managed solely in the template, template-driven forms could be a good fit. |
+
+
+
+### Key differences
+
+The following table summarizes the key differences between reactive and template-driven forms.
+
+|                                                              | REACTIVE                             | TEMPLATE-DRIVEN                 |
+| :----------------------------------------------------------- | :----------------------------------- | :------------------------------ |
+| [Setup of form model](https://angular.io/guide/forms-overview#setup) | Explicit, created in component class | Implicit, created by directives |
+| [Data model](https://angular.io/guide/forms-overview#mutability-of-the-data-model) | Structured and immutable             | Unstructured and mutable        |
+| [Data flow](https://angular.io/guide/forms-overview#data-flow-in-forms) | Synchronous                          | Asynchronous                    |
+| [Form validation](https://angular.io/guide/forms-overview#validation) | Functions                            | Directives                      |
+
+
+
+### Scalability
+
+If forms are a central part of your application, scalability is very important. Being able to reuse form models across components is critical.
+
+Reactive forms are more scalable than template-driven forms. They provide direct access to the underlying form API, and use [synchronous data flow](https://angular.io/guide/forms-overview#data-flow-in-reactive-forms) between the view and the data model, which makes creating large-scale forms easier. Reactive forms require less setup for testing, and testing does not require deep understanding of change detection to properly test form updates and validation.
+
+Template-driven forms focus on simple scenarios and are not as reusable. They abstract away the underlying form API, and use [asynchronous data flow](https://angular.io/guide/forms-overview#data-flow-in-template-driven-forms) between the view and the data model. The abstraction of template-driven forms also affects testing. Tests are deeply reliant on manual change detection execution to run properly, and require more setup.
+
+
+
+### Setting up the form model
+
+Both reactive and template-driven forms track value changes between the form input elements that users interact with and the form data in your component model. The two approaches share underlying building blocks, but differ in how you create and manage the common form-control instances.
+
+
+
+#### Common form foundation classes
+
+| BASE CLASSES           | DETAILS                                                      |
+| :--------------------- | :----------------------------------------------------------- |
+| `FormControl`          | Tracks the value and validation status of an individual form control. |
+| `FormGroup`            | Tracks the same values and status for a collection of form controls. |
+| `FormArray`            | Tracks the same values and status for an array of form controls. |
+| `ControlValueAccessor` | Creates a bridge between Angular `FormControl` instances and built-in DOM elements. |
+
+
+
+#### Setup in reactive forms
+
+With reactive forms, you define the form model directly in the component class. The `[formControl]` directive links the explicitly created `FormControl` instance to a specific form element in the view, using an internal value accessor.
+
+The following component implements an input field for a single control, using reactive forms. In this example, the form model is the `FormControl` instance.
+
+```typescript
+import { Component } from '@angular/core';
+import { FormControl } from '@angular/forms';
+
+@Component({
+  selector: 'app-reactive-favorite-color',
+  template: `
+    Favorite Color: <input type="text" [formControl]="favoriteColorControl">
+  `
+})
+export class FavoriteColorComponent {
+  favoriteColorControl = new FormControl('');
+}
+```
+
+
+
+Figure 1 shows how, in reactive forms, the form model is the source of truth; it provides the value and status of the form element at any given point in time, through the `[formControl]` directive on the input element.
+
+
+
+**Figure 1.** *Direct access to forms model in a reactive form.*
+
+ ![](./img/key-diff-reactive-forms.png)
+
+
+
+
+
+#### Setup in template-driven forms
+
+In template-driven forms, the form model is implicit, rather than explicit. The directive `NgModel` creates and manages a `FormControl` instance for a given form element.
+
+The following component implements the same input field for a single control, using template-driven forms.
+
+```typescript
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-template-favorite-color',
+  template: `
+    Favorite Color: <input type="text" [(ngModel)]="favoriteColor">
+  `
+})
+export class FavoriteColorComponent {
+  favoriteColor = '';
+}
+```
+
+
+
+In a template-driven form the source of truth is the template. You do not have direct programmatic access to the `FormControl` instance, as shown in Figure 2.
+
+
+
+**Figure 2.** *Indirect access to forms model in a template-driven form.*
+
+![](./img/key-diff-td-forms.png) 
+
+
+
+### Data flow in forms
+
+When an application contains a form, Angular must keep the view in sync with the component model and the component model in sync with the view. As users change values and make selections through the view, the new values must be reflected in the data model. Similarly, when the program logic changes values in the data model, those values must be reflected in the view.
+
+Reactive and template-driven forms differ in how they handle data flowing from the user or from programmatic changes. The following diagrams illustrate both kinds of data flow for each type of form, using the favorite-color input field defined above.
+
+
+
+#### Data flow in reactive forms
+
+In reactive forms each form element in the view is directly linked to the form model (a `FormControl` instance). Updates from the view to the model and from the model to the view are synchronous and do not depend on how the UI is rendered.
+
+
+
+The view-to-model diagram shows how data flows when an input field's value is changed from the view through the following steps.
+
+1. The user types a value into the input element, in this case the favorite color *Blue*.
+2. The form input element emits an "input" event with the latest value.
+3. The control value accessor listening for events on the form input element immediately relays the new value to the `FormControl` instance.
+4. The `FormControl` instance emits the new value through the `valueChanges` observable.
+5. Any subscribers to the `valueChanges` observable receive the new value.
+
+![](./img/dataflow-reactive-forms-vtm.png) 
+
+
+
+
+
+The model-to-view diagram shows how a programmatic change to the model is propagated to the view through the following steps.
+
+1. The user calls the `favoriteColorControl.setValue()` method, which updates the `FormControl` value.
+2. The `FormControl` instance emits the new value through the `valueChanges` observable.
+3. Any subscribers to the `valueChanges` observable receive the new value.
+4. The control value accessor on the form input element updates the element with the new value.
+
+
+
+![](./img/dataflow-reactive-forms-mtv.png) 
+
+
+
+
+
+#### Data flow in template-driven forms
+
+
+
+```
+https://angular.io/guide/forms-overview#data-flow-in-template-driven-forms
+```
+
