@@ -2159,9 +2159,296 @@ The model-to-view diagram shows how a programmatic change to the model is propag
 
 #### Data flow in template-driven forms
 
+In template-driven forms, each form element is linked to a directive that manages the form model internally.
 
 
+
+The view-to-model diagram shows how data flows when an input field's value is changed from the view through the following steps.
+
+1. The user types *Blue* into the input element.
+
+2. The input element emits an "input" event with the value *Blue*.
+
+3. The control value accessor attached to the input triggers the `setValue()` method on the `FormControl` instance.
+
+4. The `FormControl` instance emits the new value through the `valueChanges` observable.
+
+5. Any subscribers to the `valueChanges` observable receive the new value.
+
+6. The control value accessor also calls the `NgModel.viewToModelUpdate()` method which emits an `ngModelChange` event.
+
+7. Because the component template uses two-way data binding for the `favoriteColor` property, the `favoriteColor` property in the component is updated to the value emitted by the `ngModelChange` event (*Blue*).
+
+   ![](./img/dataflow-td-forms-vtm.png) 
+
+   
+
+
+
+The model-to-view diagram shows how data flows from model to view when the `favoriteColor` changes from *Blue* to *Red*, through the following steps
+
+1. The `favoriteColor` value is updated in the component.
+
+2. Change detection begins.
+
+3. During change detection, the `ngOnChanges` lifecycle hook is called on the `NgModel` directive instance because the value of one of its inputs has changed.
+
+4. The `ngOnChanges()` method queues an async task to set the value for the internal `FormControl` instance.
+
+5. Change detection completes.
+
+6. On the next tick, the task to set the `FormControl` instance value is executed.
+
+7. The `FormControl` instance emits the latest value through the `valueChanges` observable.
+
+8. Any subscribers to the `valueChanges` observable receive the new value.
+
+9. The control value accessor updates the form input element in the view with the latest `favoriteColor` value.
+
+   ![](./img/dataflow-td-forms-mtv.png) 
+
+
+
+
+
+#### Mutability of the data model
+
+The change-tracking method plays a role in the efficiency of your application.
+
+| FORMS                 | DETAILS                                                      |
+| :-------------------- | :----------------------------------------------------------- |
+| Reactive forms        | Keep the data model pure by providing it as an immutable data structure. Each time a change is triggered on the data model, the `FormControl` instance returns a new data model rather than updating the existing data model. This gives you the ability to track unique changes to the data model through the control's observable. Change detection is more efficient because it only needs to update on unique changes. Because data updates follow reactive patterns, you can integrate with observable operators to transform data. |
+| Template-driven forms | Rely on mutability with two-way data binding to update the data model in the component as changes are made in the template. Because there are no unique changes to track on the data model when using two-way data binding, change detection is less efficient at determining when updates are required. |
+
+The difference is demonstrated in the previous examples that use the favorite-color input element.
+
+- With reactive forms, the **`FormControl` instance** always returns a new value when the control's value is updated
+- With template-driven forms, the **favorite color property** is always modified to its new value
+
+
+
+
+
+### Form validation
+
+Validation is an integral part of managing any set of forms. Whether you're checking for required fields or querying an external API for an existing username, Angular provides a set of built-in validators as well as the ability to create custom validators.
+
+| FORMS                 | DETAILS                                                      |
+| :-------------------- | :----------------------------------------------------------- |
+| Reactive forms        | Define custom validators as **functions** that receive a control to validate |
+| Template-driven forms | Tied to template **directives**, and must provide custom validator directives that wrap validation functions |
+
+For more information, see [Form Validation](https://angular.io/guide/form-validation).
+
+
+
+
+
+## Reactive forms
+
+Reactive forms provide a model-driven approach to handling form inputs whose values change over time. This guide shows you how to create and update a basic form control, progress to using multiple controls in a group, validate form values, and create dynamic forms where you can add or remove controls at run time.
+
+
+
+#### Overview of reactive forms
+
+Reactive forms use an explicit and immutable approach to managing the state of a form at a given point in time. Each change to the form state returns a new state, which maintains the integrity of the model between changes. Reactive forms are built around [observable](https://angular.io/guide/glossary#observable) streams, where form inputs and values are provided as streams of input values, which can be accessed synchronously.
+
+Reactive forms also provide a straightforward path to testing because you are assured that your data is consistent and predictable when requested. Any consumers of the streams have access to manipulate that data safely.
+
+Reactive forms differ from [template-driven forms](https://angular.io/guide/forms) in distinct ways. Reactive forms provide synchronous access to the data model, immutability with observable operators, and change tracking through observable streams.
+
+Template-driven forms let direct access modify data in your template, but are less explicit than reactive forms because they rely on directives embedded in the template, along with mutable data to track changes asynchronously. See the [Forms Overview](https://angular.io/guide/forms-overview) for detailed comparisons between the two paradigms.
+
+
+
+
+
+#### 1.Adding a basic form control
+
+There are three steps to using form controls.
+
+1. Register the reactive forms module in your application. This module declares the reactive-form directives that you need to use reactive forms.
+2. Generate a new component and instantiate a new `FormControl`.
+3. Register the `FormControl` in the template.
+
+You can then display the form by adding the component to the template.
+
+The following examples show how to add a single form control. In the example, the user enters their name into an input field, captures that input value, and displays the current value of the form control element.
+
+
+
+| ACTION                               | DETAILS                                                      |
+| :----------------------------------- | :----------------------------------------------------------- |
+| Register the reactive forms module   | To use reactive form controls, import `ReactiveFormsModule` from the `@angular/forms` package and add it to your NgModule's `imports` array.![](./img/register_reactiveFormModule.png) |
+| Generate a new `FormControl`         | Use the [CLI command](https://angular.io/cli/generate#component-command) `ng generate` to generate a component in your project to host the control.![](./img/gen_newFormControl.png)                                       Use the constructor of `FormControl` to set its initial value, which in this case is an empty string. By creating these controls in your component class, you get immediate access to listen for, update, and validate the state of the form input. |
+| Register the control in the template | After you create the control in the component class, you must associate it with a form control element in the template. Update the template with the form control using the `formControl` binding provided by `FormControlDirective`, which is also included in the `ReactiveFormsModule`.![](./img/reg_ctrl_in_the_template.png)                                        ---*For a summary of the classes and directives provided by `ReactiveFormsModule`, see the following [Reactive forms API](https://angular.io/guide/reactive-forms#reactive-forms-api) section                                                                                                                                                           *For complete syntax details of these classes and directives, see the API reference documentation for the [Forms package](https://angular.io/api/forms)                                                                                                                                                            Using the template binding syntax, the form control is now registered to the `name` input element in the template. The form control and DOM element communicate with each other: the view reflects changes in the model, and the model reflects changes in the view. |
+| Display the component                | The `FormControl` assigned to the `name` property is displayed when the property's host component is added to a template.         ![](./img/display_comp.png) ![Name Editor, which has a name label and an input so the user can enter a name](https://angular.io/generated/images/guide/reactive-forms/name-editor-1.png) |
+
+
+
+
+
+##### Displaying a form control value
+
+You can display the value in the following ways.
+
+- Through the `valueChanges` observable where you can listen for changes in the form's value in the template using `AsyncPipe` or in the component class using the `subscribe()` method
+- With the `value` property, which gives you a snapshot of the current value
+
+The following example shows you how to display the current value using interpolation in the template.
+
+
+
+( src/app/name-editor/name-editor.component.html (control value) )
+
+```html
+<p>Value: {{ name.value }}</p>
 ```
-https://angular.io/guide/forms-overview#data-flow-in-template-driven-forms
+
+
+
+The displayed value changes as you update the form control element.
+
+Reactive forms provide access to information about a given control through properties and methods provided with each instance. These properties and methods of the underlying [AbstractControl](https://angular.io/api/forms/AbstractControl) class are used to control form state and determine when to display messages when handling [input validation](https://angular.io/guide/reactive-forms#basic-form-validation).
+
+Read about other `FormControl` properties and methods in the [API Reference](https://angular.io/api/forms/FormControl).
+
+
+
+##### Replacing a form control value
+
+Reactive forms have methods to change a control's value programmatically, which gives you the flexibility to update the value without user interaction. A form control instance provides a `setValue()` method that updates the value of the form control and validates the structure of the value provided against the control's structure. For example, when retrieving form data from a backend API or service, use the `setValue()` method to update the control to its new value, replacing the old value entirely.
+
+The following example adds a method to the component class to update the value of the control to *Nancy* using the `setValue()` method.
+
+
+
+( src/app/name-editor/name-editor.component.ts (update value) )
+
+```typescript
+updateName() {
+  this.name.setValue('Nancy');
+}
 ```
 
+Update the template with a button to simulate a name update. When you click the **Update Name** button, the value entered in the form control element is reflected as its current value.
+
+
+
+( src/app/name-editor/name-editor.component.html (update value) )
+
+```html
+<button type="button" (click)="updateName()">Update Name</button>
+```
+
+The form model is the source of truth for the control, so when you click the button, the value of the input is changed within the component class, overriding its current value.
+
+
+
+**NOTE**:
+In this example, you're using a single control. When using the `setValue()` method with a [form group](https://angular.io/guide/reactive-forms#grouping-form-controls) or [form array](https://angular.io/guide/reactive-forms#creating-dynamic-forms) instance, the value needs to match the structure of the group or array.
+
+
+
+
+
+### 2.Grouping form controls
+
+Forms typically contain several related controls. Reactive forms provide two ways of grouping multiple related controls into a single input form.
+
+
+
+| FORM GROUPS | DETAILS                                                      |
+| :---------- | :----------------------------------------------------------- |
+| Form group  | Defines a form with a fixed set of controls that you can manage together. Form group basics are discussed in this section. You can also [nest form groups](https://angular.io/guide/reactive-forms#nested-groups) to create more complex forms. |
+| Form array  | Defines a dynamic form, where you can add and remove controls at run time. You can also nest form arrays to create more complex forms. For more about this option, see [Creating dynamic forms](https://angular.io/guide/reactive-forms#dynamic-forms). |
+
+
+
+Just as a form control instance gives you control over a single input field, a form group instance tracks the form state of a group of form control instances (for example, a form). Each control in a form group instance is tracked by name when creating the form group. The following example shows how to manage multiple form control instances in a single group.
+
+
+
+Generate a `ProfileEditor` component and import the `FormGroup` and `FormControl` classes from the `@angular/forms` package.
+
+```shell
+ng generate component ProfileEditor
+```
+
+
+
+( ng generate component ProfileEditor )
+
+```typescript
+import { FormGroup, FormControl } from '@angular/forms';
+```
+
+
+
+To add a form group to this component, take the following steps.
+
+1. Create a `FormGroup` instance.
+2. Associate the `FormGroup` model and view.
+3. Save the form data.
+
+| ACTION                                   | DETAILS                                                      |
+| :--------------------------------------- | :----------------------------------------------------------- |
+| Create a `FormGroup` instance            | Create a property in the component class named `profileForm` and set the property to a new form group instance. To initialize the form group, provide the constructor with an object of named keys mapped to their control. For the profile form, add two form control instances with the names `firstName` and `lastName`.![](./img/cre_FormGrop_inst.png)                                      The individual form controls are now collected within a group. A `FormGroup` instance provides its model value as an object reduced from the values of each control in the group. A form group instance has the same properties (such as `value` and `untouched`) and methods (such as `setValue()`) as a form control instance. |
+| Associate the `FormGroup` model and view | A form group tracks the status and changes for each of its controls, so if one of the controls changes, the parent control also emits a new status or value change. The model for the group is maintained from its members. After you define the model, you must update the template to reflect the model in the view.![](./img/associate_FormGrop_model_and_view.png)                                  **NOTE**: Just as a form group contains a group of controls, the *profileForm* `FormGroup` is bound to the `form` element with the `FormGroup` directive, creating a communication layer between the model and the form containing the inputs.                                                                                                                                                             The `formControlName` input provided by the `FormControlName` directive binds each individual input to the form control defined in `FormGroup`. The form controls communicate with their respective elements. They also communicate changes to the form group instance, which provides the source of truth for the model value. |
+| Save form data                           | The `ProfileEditor` component accepts input from the user, but in a real scenario you want to capture the form value and make available for further processing outside the component. The `FormGroup` directive listens for the `submit` event emitted by the `form` element and emits an `ngSubmit` event that you can bind to a callback function. Add an `ngSubmit` event listener to the `form` tag with the `onSubmit()` callback method.![](./img/save_from_data_submit.png)                                                          The `onSubmit()` method in the `ProfileEditor` component captures the current value of `profileForm`. Use `EventEmitter` to keep the form encapsulated and to provide the form value outside the component. The following example uses `console.warn` to log a message to the browser console.![](./img/onSubmit_method.png)                                                 The `submit` event is emitted by the `form` tag using the built-in DOM event. You trigger the event by clicking a button with `submit` type. This lets the user press the **Enter** key to submit the completed form. Use a `button` element to add a button to the bottom of the form to trigger the form submission![](./img/submit_btn.png)                                      **NOTE**: The button in the preceding snippet also has a `disabled` binding attached to it to disable the button when `profileForm` is invalid. You aren't performing any validation yet, so the button is always enabled. Basic form validation is covered in the [Validating form input](https://angular.io/guide/reactive-forms#basic-form-validation) section. |
+| Display the component                    | To display the `ProfileEditor` component that contains the form, add it to a component template.![](./img/display_profileEditor.png)                     `ProfileEditor` lets you manage the form control instances for the `firstName` and `lastName` controls within the form group instance. |
+
+
+
+
+
+#### Creating nested form groups
+
+...
+
+#### Updating parts of the data model
+
+...
+
+
+
+### 3.Using the FormBuilder service to generate controls
+
+Creating form control instances manually can become repetitive when dealing with multiple forms. The `FormBuilder` service provides convenient methods for generating controls.
+
+Use the following steps to take advantage of this service.
+
+1. Import the `FormBuilder` class.
+2. Inject the `FormBuilder` service.
+3. Generate the form contents.
+
+The following examples show how to refactor the `ProfileEditor` component to use the form builder service to create form control and form group instances.
+
+
+
+| ACTION                         | DETAILS                                                      |
+| :----------------------------- | :----------------------------------------------------------- |
+| Import the FormBuilder class   | Import the `FormBuilder` class from the `@angular/forms` package.![](./img/import_FB.png) |
+| Inject the FormBuilder service | The `FormBuilder` service is an injectable provider that is provided with the reactive forms module. Inject this dependency by adding it to the component constructor.![](./img/inject_FB_service.png) |
+| Generate form controls         | The `FormBuilder` service has three methods: `control()`, `group()`, and `array()`. These are factory methods for generating instances in your component classes including form controls, form groups, and form arrays. Use the `group` method to create the `profileForm` controls.![](./img/gen_FromControls.png)                    In the preceding example, you use the `group()` method with the same object to define the properties in the model. The value for each control name is an array containing the initial value as the first item in the array.                                                                                                                                                                                           **TIP**: You can define the control with just the initial value, but if your controls need sync or async validation, add sync and async validators as the second and third items in the array.                                                               Compare using the form builder to creating the instances manually.![](./img/profileEditor_manually.png) ![](./img/profileEditor_fb.png) |
+
+
+
+### 3.Validating form input
+
+*Form validation* is used to ensure that user input is complete and correct. This section covers adding a single validator to a form control and displaying the overall form status. Form validation is covered more extensively in the [Form Validation](https://angular.io/guide/form-validation) guide.
+
+Use the following steps to add form validation.
+
+1. Import a validator function in your form component.
+2. Add the validator to the field in the form.
+3. Add logic to handle the validation status.
+
+The most common validation is making a field required. The following example shows how to add a required validation to the `firstName` control and display the result of validation.
+
+| ACTION                      | DETAILS                                                      |
+| :-------------------------- | :----------------------------------------------------------- |
+| Import a validator function | Reactive forms include a set of validator functions for common use cases. These functions receive a control to validate against and return an error object or a null value based on the validation check. Import the `Validators` class from the `@angular/forms` package.![](./img/import_validator.png) |
+| Make a field required       | In the `ProfileEditor` component, add the `Validators.required` static method as the second item in the array for the `firstName` control.![](./img/make_a_field_required.png) |
+| Display form status         | When you add a required field to the form control, its initial status is invalid. This invalid status propagates to the parent form group element, making its status invalid. Access the current status of the form group instance through its `status` property. Display the current status of `profileForm` using interpolation.![](./img/display_form_status.png)                                                            The **Submit** button is disabled because `profileForm` is invalid due to the required `firstName` form control. After you fill out the `firstName` input, the form becomes valid and the **Submit** button is enabled.                                     For more on form validation, visit the [Form Validation](https://angular.io/guide/form-validation) guide. |
