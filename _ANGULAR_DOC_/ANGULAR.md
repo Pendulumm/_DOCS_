@@ -2264,7 +2264,7 @@ Template-driven forms let direct access modify data in your template, but are le
 
 
 
-#### 1.Adding a basic form control
+### 1.Adding a basic form control
 
 There are three steps to using form controls.
 
@@ -2405,11 +2405,71 @@ To add a form group to this component, take the following steps.
 
 #### Creating nested form groups
 
-...
+Form groups can accept both individual form control instances and other form group instances as children. This makes composing complex form models easier to maintain and logically group together.
+
+When building complex forms, managing the different areas of information is easier in smaller sections. Using a nested form group instance lets you break large forms groups into smaller, more manageable ones.
+
+To make more complex forms, use the following steps.
+
+1. Create a nested group.
+2. Group the nested form in the template.
+
+Some types of information naturally fall into the same group. A name and address are typical examples of such nested groups, and are used in the following examples.
+
+
+
+| ACTION                                | DETAILS                                                      |
+| :------------------------------------ | :----------------------------------------------------------- |
+| Create a nested group                 | To create a nested group in `profileForm`, add a nested `address` element to the form group instance.![](./img/create_a_nested_group.png)                                                 In this example, `address group` combines the current `firstName` and `lastName` controls with the new `street`, `city`, `state`, and `zip` controls. Even though the `address` element in the form group is a child of the overall `profileForm` element in the form group, the same rules apply with value and status changes. Changes in status and value from the nested form group propagate to the parent form group, maintaining consistency with the overall model. |
+| Group the nested form in the template | After you update the model in the component class, update the template to connect the form group instance and its input elements. Add the `address` form group containing the `street`, `city`, `state`, and `zip` fields to the `ProfileEditor` template.![](./img/group_the_nestedForm_in_the_template.png)                                          The `ProfileEditor` form is displayed as one group, but the model is broken down further to represent the logical grouping areas.                                                                                                       ![](./img/nested_group.png)                                                                                                                                             **TIP**:   Display the value for the form group instance in the component template using the `value` property and `JsonPipe`. |
+
+
 
 #### Updating parts of the data model
 
-...
+When updating the value for a form group instance that contains multiple controls, you might only want to update parts of the model. This section covers how to update specific parts of a form control data model.
+
+There are two ways to update the model value:
+
+| METHODS        | DETAILS                                                      |
+| :------------- | :----------------------------------------------------------- |
+| `setValue()`   | Set a new value for an individual control. The `setValue()` method strictly adheres to the structure of the form group and replaces the entire value for the control. |
+| `patchValue()` | Replace any properties defined in the object that have changed in the form model. |
+
+The strict checks of the `setValue()` method help catch nesting errors in complex forms, while `patchValue()` fails silently on those errors.
+
+
+
+In `ProfileEditorComponent`, use the `updateProfile` method with the following example to update the first name and street address for the user.
+
+( src/app/profile-editor/profile-editor.component.ts (patch value) )
+
+```typescript
+updateProfile() {
+  this.profileForm.patchValue({
+    firstName: 'Nancy',
+    address: {
+      street: '123 Drew Street'
+    }
+  });
+}
+```
+
+
+
+Simulate an update by adding a button to the template to update the user profile on demand.
+
+( src/app/profile-editor/profile-editor.component.html (update value) )
+
+```html
+<button type="button" (click)="updateProfile()">Update Profile</button>
+```
+
+When a user clicks the button, the `profileForm` model is updated with new values for `firstName` and `street`. Notice that `street` is provided in an object inside the `address` property. This is necessary because the `patchValue()` method applies the update against the model structure. `PatchValue()` **only updates properties** that the form model defines.
+
+
+
+<hr>
 
 
 
@@ -2435,7 +2495,7 @@ The following examples show how to refactor the `ProfileEditor` component to use
 
 
 
-### 3.Validating form input
+### 4.Validating form input
 
 *Form validation* is used to ensure that user input is complete and correct. This section covers adding a single validator to a form control and displaying the overall form status. Form validation is covered more extensively in the [Form Validation](https://angular.io/guide/form-validation) guide.
 
@@ -2452,3 +2512,349 @@ The most common validation is making a field required. The following example sho
 | Import a validator function | Reactive forms include a set of validator functions for common use cases. These functions receive a control to validate against and return an error object or a null value based on the validation check. Import the `Validators` class from the `@angular/forms` package.![](./img/import_validator.png) |
 | Make a field required       | In the `ProfileEditor` component, add the `Validators.required` static method as the second item in the array for the `firstName` control.![](./img/make_a_field_required.png) |
 | Display form status         | When you add a required field to the form control, its initial status is invalid. This invalid status propagates to the parent form group element, making its status invalid. Access the current status of the form group instance through its `status` property. Display the current status of `profileForm` using interpolation.![](./img/display_form_status.png)                                                            The **Submit** button is disabled because `profileForm` is invalid due to the required `firstName` form control. After you fill out the `firstName` input, the form becomes valid and the **Submit** button is enabled.                                     For more on form validation, visit the [Form Validation](https://angular.io/guide/form-validation) guide. |
+
+
+
+## Validating form input
+
+You can improve overall data quality by validating user input for accuracy and completeness. This page shows how to validate user input from the UI and display useful validation messages, in both reactive and template-driven forms.
+
+
+
+
+
+### Validating input in reactive forms
+
+In a reactive form, the source of truth is the component class. Instead of adding validators through attributes in the template, you add validator functions directly to the form control model in the component class. Angular then calls these functions whenever the value of the control changes.
+
+
+
+#### Validator functions
+
+Validator functions can be either synchronous or asynchronous.
+
+| VALIDATOR TYPE   | DETAILS                                                      |
+| :--------------- | :----------------------------------------------------------- |
+| Sync validators  | Synchronous functions that take a control instance and immediately return either a set of validation errors or `null`. Pass these in as the second argument when you instantiate a `FormControl`. |
+| Async validators | Asynchronous functions that take a control instance and return a Promise or Observable that later emits a set of validation errors or `null`. Pass these in as the third argument when you instantiate a `FormControl`. |
+
+For performance reasons, Angular only runs async validators if all sync validators pass. Each must complete before errors are set.
+
+
+
+#### Built-in validator functions
+
+You can choose to [write your own validator functions](https://angular.io/guide/form-validation#custom-validators), or you can use some of Angular's built-in validators.
+
+The same built-in validators that are available as attributes in template-driven forms, such as `required` and `minlength`, are all available to use as functions from the `Validators` class. For a full list of built-in validators, see the [Validators](https://angular.io/api/forms/Validators) API reference.
+
+To update the hero form to be a reactive form, use some of the same built-in validators —this time, in function form, as in the following example.
+
+
+
+( reactive/hero-form-reactive.component.ts (validator functions) )
+
+```typescript
+ngOnInit(): void {
+  this.heroForm = new FormGroup({
+    name: new FormControl(this.hero.name, [
+      Validators.required,
+      Validators.minLength(4),
+      forbiddenNameValidator(/bob/i) // <-- Here's how you pass in the custom validator.
+    ]),
+    alterEgo: new FormControl(this.hero.alterEgo),
+    power: new FormControl(this.hero.power, Validators.required)
+  });
+
+}
+
+get name() { return this.heroForm.get('name'); }
+
+get power() { return this.heroForm.get('power'); }
+```
+
+
+
+In this example, the `name` control sets up two built-in validators —`Validators.required` and `Validators.minLength(4)`— and one custom validator, `forbiddenNameValidator`. (For more details see [custom validators](https://angular.io/guide/form-validation#custom-validators).)
+
+All of these validators are synchronous, so they are passed as the second argument. Notice that you can support multiple validators by passing the functions in as an array.
+
+This example also adds a few getter methods. In a reactive form, you can always access any form control through the `get` method on its parent group, but sometimes it's useful to define getters as shorthand for the template.
+
+
+
+If you look at the template for the `name` input again, it is fairly similar to the template-driven example.
+
+( reactive/hero-form-reactive.component.html (name with error msg) )
+
+```html
+<input type="text" id="name" class="form-control"
+      formControlName="name" required>
+
+<div *ngIf="name.invalid && (name.dirty || name.touched)"
+    class="alert alert-danger">
+
+  <div *ngIf="name.errors?.['required']">
+    Name is required.
+  </div>
+  <div *ngIf="name.errors?.['minlength']">
+    Name must be at least 4 characters long.
+  </div>
+  <div *ngIf="name.errors?.['forbiddenName']">
+    Name cannot be Bob.
+  </div>
+</div>
+```
+
+This form differs from the template-driven version in that it no longer exports any directives. Instead, it uses the `name` getter defined in the component class.
+
+Notice that the `required` attribute is still present in the template. Although it's not necessary for validation, it should be retained to for accessibility purposes.
+
+
+
+<hr>
+
+### Defining custom validators
+
+The built-in validators don't always match the exact use case of your application, so you sometimes need to create a custom validator.
+
+Consider the `forbiddenNameValidator` function from previous [reactive-form examples](https://angular.io/guide/form-validation#reactive-component-class). Here's what the definition of that function looks like.
+
+( shared/forbidden-name.directive.ts (forbiddenNameValidator) )
+
+```typescript
+/** A hero's name can't match the given regular expression */
+export function forbiddenNameValidator(nameRe: RegExp): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const forbidden = nameRe.test(control.value);
+    return forbidden ? {forbiddenName: {value: control.value}} : null;
+  };
+}
+```
+
+The function is a factory that takes a regular expression to detect a *specific* forbidden name and returns a validator function.
+
+In this sample, the forbidden name is "bob", so the validator rejects any hero name containing "bob". Elsewhere it could reject "alice" or any name that the configuring regular expression matches.
+
+The `forbiddenNameValidator` factory returns the configured validator function. That function takes an Angular control object and **returns** *either* **null** if the control value is **valid** *or* **a validation error object**. The validation error object typically has a property whose name is the validation key, `'forbiddenName'`, and whose value is an arbitrary dictionary of values that you could insert into an error message, `{name}`.
+
+Custom async validators are similar to sync validators, but they must instead return a Promise or observable that later emits null or a validation error object. In the case of an observable, the observable must complete, at which point the form uses the last value emitted for validation.
+
+
+
+
+
+##### Adding custom validators to reactive forms
+
+In reactive forms, add a custom validator by passing the function directly to the `FormControl`.
+
+( reactive/hero-form-reactive.component.ts (validator functions) )
+
+```typescript
+this.heroForm = new FormGroup({
+  name: new FormControl(this.hero.name, [
+    Validators.required,
+    Validators.minLength(4),
+    forbiddenNameValidator(/bob/i) // <-- Here's how you pass in the custom validator.
+  ]),
+  alterEgo: new FormControl(this.hero.alterEgo),
+  power: new FormControl(this.hero.power, Validators.required)
+});
+```
+
+
+
+### Control status CSS classes
+
+Angular automatically mirrors many control properties onto the form control element as CSS classes. Use these classes to style form control elements according to the state of the form. The following classes are currently supported.
+
+- `.ng-valid`
+- `.ng-invalid`
+- `.ng-pending`
+- `.ng-pristine`
+- `.ng-dirty`
+- `.ng-untouched`
+- `.ng-touched`
+- `.ng-submitted` (enclosing form element only)
+
+In the following example, the hero form uses the `.ng-valid` and `.ng-invalid` classes to set the color of each form control's border.
+
+
+
+( forms.css (status classes) )
+
+```css
+.ng-valid[required], .ng-valid.required  {
+  border-left: 5px solid #42A948; /* green */
+}
+
+.ng-invalid:not(form)  {
+  border-left: 5px solid #a94442; /* red */
+}
+
+.alert div {
+  background-color: #fed3d3;
+  color: #820000;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+label {
+  display: block;
+  margin-bottom: .5rem;
+}
+
+select {
+  width: 100%;
+  padding: .5rem;
+}
+```
+
+
+
+
+
+### Cross-field validation
+
+A cross-field validator is a [custom validator](https://angular.io/guide/form-validation#custom-validators) that compares the values of different fields in a form and accepts or rejects them in combination. For example, you might have a form that offers mutually incompatible options, so that if the user can choose A or B, but not both. Some field values might also depend on others; a user might be allowed to choose B only if A is also chosen.
+
+The following cross validation examples show how to do the following:
+
+- Validate reactive or template-based form input based on the values of two sibling controls,
+- Show a descriptive error message after the user interacted with the form and the validation failed.
+
+The examples use cross-validation to ensure that heroes do not reveal their true identities by filling out the Hero Form. The validators do this by checking that the hero names and alter egos do not match.
+
+
+
+#### Adding cross-validation to reactive forms
+
+The form has the following structure:
+
+```typescript
+const heroForm = new FormGroup({
+  'name': new FormControl(),
+  'alterEgo': new FormControl(),
+  'power': new FormControl()
+});
+```
+
+Notice that the `name` and `alterEgo` are sibling controls. To evaluate both controls in a single custom validator, you must perform the validation in a common ancestor control: the `FormGroup`. You query the `FormGroup` for its child controls so that you can compare their values.
+
+
+
+To add a validator to the `FormGroup`, pass the new validator in as the second argument on creation.
+
+```typescript
+const heroForm = new FormGroup({
+  'name': new FormControl(),
+  'alterEgo': new FormControl(),
+  'power': new FormControl()
+}, { validators: identityRevealedValidator });
+```
+
+
+
+The validator code is as follows.
+
+( shared/identity-revealed.directive.ts )
+
+```typescript
+/** A hero's name can't match the hero's alter ego */
+export const identityRevealedValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const name = control.get('name');
+  const alterEgo = control.get('alterEgo');
+
+  return name && alterEgo && name.value === alterEgo.value ? { identityRevealed: true } : null;
+};
+```
+
+The `identity` validator implements the `ValidatorFn` interface. It takes an Angular control object as an argument and returns either null if the form is valid, or `ValidationErrors` otherwise.
+
+The validator retrieves the child controls by calling the `FormGroup`'s [get](https://angular.io/api/forms/AbstractControl#get) method, then compares the values of the `name` and `alterEgo` controls.
+
+If the values do not match, the hero's identity remains secret, both are valid, and the validator returns null. If they do match, the hero's identity is revealed and the validator must mark the form as invalid by returning an error object.
+
+
+
+To provide better user experience, the template shows an appropriate error message when the form is invalid.
+
+(reactive/hero-form-template.component.html)
+
+```typescript
+<div *ngIf="heroForm.errors?.['identityRevealed'] && (heroForm.touched || heroForm.dirty)" class="cross-validation-error-message alert alert-danger">
+    Name cannot match alter ego.
+</div>
+```
+
+
+
+This `*ngIf` displays the error if the `FormGroup` has the cross validation error returned by the `identityRevealed` validator, but only if the user finished [interacting with the form](https://angular.io/guide/form-validation#dirty-or-touched).
+
+--->To prevent the validator from displaying errors before the user has a chance to edit the form, you should check for either the `dirty` or `touched` states in a control.
+
+- When the user changes the value in the watched field, the control is marked as "dirty"
+- When the user blurs the form control element, the control is marked as "touched"
+
+
+
+
+
+### Creating asynchronous validators
+
+Asynchronous validators implement the `AsyncValidatorFn` and `AsyncValidator` interfaces. These are very similar to their synchronous counterparts, with the following differences.
+
+- The `validate()` functions must return a Promise or an observable,
+- The observable returned must be finite, meaning it must complete at some point. To convert an infinite observable into a finite one, pipe the observable through a filtering operator such as `first`, `last`, `take`, or `takeUntil`.
+
+Asynchronous validation happens after the synchronous validation, and is performed only if the synchronous validation is successful. This check lets forms avoid potentially expensive async validation processes (such as an HTTP request) if the more basic validation methods have already found invalid input.
+
+After asynchronous validation begins, the form control enters a `pending` state. Inspect the control's `pending` property and use it to **give visual feedback** about the ongoing validation operation.
+
+A common UI pattern is to show a spinner while the async validation is being performed. The following example shows how to achieve this in a template-driven form.
+
+
+
+A common UI pattern is to show a spinner while the async validation is being performed. The following example shows how to achieve this in a template-driven form.
+
+```html
+<input [(ngModel)]="name" #model="ngModel" appSomeAsyncValidator>
+<app-spinner *ngIf="model.pending"></app-spinner>
+```
+
+
+
+#### Implementing a custom async validator
+
+In the following example, an async validator ensures that heroes pick an alter ego that is not already taken. New heroes are constantly enlisting and old heroes are leaving the service, so the list of available alter egos cannot be retrieved ahead of time. To validate the potential alter ego entry, the validator must initiate an asynchronous operation to consult a central database of all currently enlisted heroes.
+
+The following code creates the validator class, `UniqueAlterEgoValidator`, which implements the `AsyncValidator` interface.
+
+```typescript
+@Injectable({ providedIn: 'root' })
+export class UniqueAlterEgoValidator implements AsyncValidator {
+  constructor(private heroesService: HeroesService) {}
+
+  validate(
+    control: AbstractControl
+  ): Observable<ValidationErrors | null> {
+    return this.heroesService.isAlterEgoTaken(control.value).pipe(
+      map(isTaken => (isTaken ? { uniqueAlterEgo: true } : null)),
+      catchError(() => of(null))
+    );
+  }
+}
+```
+
+The constructor injects the `HeroesService`, which defines the following interface.
+
+```typescript
+interface HeroesService {
+  isAlterEgoTaken: (alterEgo: string) => Observable<boolean>;
+}
+```
+
