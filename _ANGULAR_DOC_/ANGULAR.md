@@ -1970,11 +1970,712 @@ Provide optional route parameters in an object, as in `{ foo: 'foo' }`:
 <a [routerLink]="['/crisis-center', { foo: 'foo' }]">Crisis Center</a>
 ```
 
-...	__Pend__ 
+These three examples cover the needs of an application with one level of routing. However, with a child router, such as in the crisis center, you create new link array possibilities.
+
+
+
+The following minimal `RouterLink` example builds upon a specified [default child route](https://angular.io/guide/router-tutorial-toh#a-crisis-center-with-child-routes) for the crisis center.
+
+( src/app/app.component.ts (cc-anchor-w-default) )
+
+```html
+<a [routerLink]="['/crisis-center']">Crisis Center</a>
+```
+
+Review the following:
+
+- The first item in the array identifies the parent route (`/crisis-center`)
+- There are no parameters for this parent route
+- There is no default for the child route so you need to pick one
+- You're navigating to the `CrisisListComponent`, whose route path is `/`, but you don't need to explicitly add the slash
+
+
+
+Consider the following router link that navigates from the root of the application down to the Dragon Crisis:
+
+( src/app/app.component.ts (Dragon-anchor) )
+
+```html
+<a [routerLink]="['/crisis-center', 1]">Dragon Crisis</a>
+```
+
+
+
+- The first item in the array identifies the parent route (`/crisis-center`)
+- There are no parameters for this parent route
+- The second item identifies the child route details about a particular crisis (`/:id`)
+- The details child route requires an `id` route parameter
+- You added the `id` of the Dragon Crisis as the second item in the array (`1`)
+- The resulting path is `/crisis-center/1`
+
+
+
+You could also redefine the `AppComponent` template with Crisis Center routes exclusively:
+
+( src/app/app.component.ts (template) )
+
+```typescript
+template: `
+  <h1 class="title">Angular Router</h1>
+  <nav>
+    <a [routerLink]="['/crisis-center']">Crisis Center</a>
+    <a [routerLink]="['/crisis-center/1', { foo: 'foo' }]">Dragon Crisis</a>
+    <a [routerLink]="['/crisis-center/2']">Shark Crisis</a>
+  </nav>
+  <router-outlet></router-outlet>
+`
+```
+
+
+
+
+
+
+
+### `LocationStrategy` and browser URL styles
+
+When the router navigates to a new component view, it updates the browser's location and history with a URL for that view.
+
+Modern HTML5 browsers support [history.pushState](https://developer.mozilla.org/docs/Web/API/History_API/Working_with_the_History_API#adding_and_modifying_history_entries), a technique that changes a browser's location and history without triggering a server page request. The router can compose a "natural" URL that is indistinguishable from one that would otherwise require a page load.
+
+
+
+Here's the Crisis Center URL in this "HTML5 pushState" style:
 
 ```http
-https://angular.io/guide/router#getting-route-information
+localhost:3002/crisis-center
 ```
+
+Older browsers send page requests to the server when the location URL changes unless the change occurs after a "#" (called the "hash"). Routers can take advantage of this exception by composing in-application route URLs with hashes. Here's a "hash URL" that routes to the Crisis Center.
+
+```http
+localhost:3002/src/#/crisis-center
+```
+
+The router supports both styles with two `LocationStrategy` providers:
+
+| PROVIDERS              | DETAILS                              |
+| :--------------------- | :----------------------------------- |
+| `PathLocationStrategy` | The default "HTML5 pushState" style. |
+| `HashLocationStrategy` | The "hash URL" style.                |
+
+
+
+The `RouterModule.forRoot()` function sets the `LocationStrategy` to the `PathLocationStrategy`, which makes it the default strategy. You also have the option of switching to the `HashLocationStrategy` with an override during the bootstrapping process.
+
+
+
+## Routing Tutorial
+
+
+
+### 1.Using Angular routes in a single-page application
+
+This tutorial describes how to build a single-page application, SPA that uses multiple Angular routes.
+
+In a Single Page Application (SPA), all of your application's functions exist in a single HTML page. As users access your application's features, the browser needs to render only the parts that matter to the user, instead of loading a new page. This pattern can significantly improve your application's user experience.
+
+To define how users navigate through your application, you use routes. Add routes to define how users navigate from one part of your application to another. You can also configure routes to guard against unexpected or unauthorized behavior.
+
+To explore a sample application featuring the contents of this tutorial, see the [live example](https://angular.io/generated/live-examples/router-tutorial/stackblitz.html) / [download example](https://angular.io/generated/zips/router-tutorial/router-tutorial.zip).
+
+
+
+<hr>
+
+#### Objectives
+
+- Organize a sample application's features into modules.
+- Define how to navigate to a component.
+- **Pass information** to a component using a parameter.
+- Structure routes by nesting several routes.
+- Check whether users can access a route.
+- Control whether the application can discard unsaved changes.
+- Improve performance by pre-fetching route data and lazy loading feature modules.
+- Require specific criteria to load components.
+
+#### Prerequisites
+
+To complete this tutorial, you should have a basic understanding of the following concepts:
+
+- JavaScript
+- HTML
+- CSS
+- [Angular CLI](https://angular.io/cli)
+
+You might find the [Tour of Heroes tutorial](https://angular.io/tutorial/tour-of-heroes) helpful, but it is not required.
+
+
+
+#### Create a sample application
+
+Using the Angular CLI, create a new application, *angular-router-sample*. This application will have two components: *crisis-list* and *heroes-list*.
+
+1. Create a new Angular project, *angular-router-sample*.
+
+   ```shell
+   ng new angular-router-sample
+   ```
+
+   When prompted with `Would you like to add Angular routing?`, select `N`.
+
+   When prompted with `Which stylesheet format would you like to use?`, select `CSS`.
+
+   After a few moments, a new project, `angular-router-sample`, is ready.
+
+2. From your terminal, navigate to the `angular-router-sample` directory.
+
+3. Create a component, *crisis-list*.
+
+   ```shell
+   ng generate component crisis-list
+   ```
+
+4. In your code editor, locate the file, `crisis-list.component.html` and replace the placeholder content with the following HTML.
+
+   ( src/app/crisis-list/crisis-list.component.html )
+
+   ```html
+   <h3>CRISIS CENTER</h3>
+   <p>Get your crisis here</p>
+   ```
+
+5. Create a second component, *heroes-list*.
+
+   ```shell
+   ng generate component heroes-list
+   ```
+
+6. In your code editor, locate the file, `heroes-list.component.html` and replace the placeholder content with the following HTML.
+
+   ( src/app/heroes-list/heroes-list.component.html )
+
+   ```html
+   <h3>HEROES</h3>
+   <p>Get your heroes here</p>
+   ```
+
+7. In your code editor, open the file, `app.component.html` and replace its contents with the following HTML.
+
+   (src/app/app.component.html)
+
+   ```html
+   <h1>Angular Router Sample</h1>
+   <app-crisis-list></app-crisis-list>
+   <app-heroes-list></app-heroes-list>
+   ```
+
+8. Verify that your new application runs as expected by running the `ng serve` command.
+
+   ```shell
+   ng serve
+   ```
+
+9. Open a browser to `http://localhost:4200`.
+
+   You should see a single web page, consisting of a title and the HTML of your two components.
+
+   
+
+   <hr>
+
+   
+
+#### Import `RouterModule` from `@angular/router`
+
+Routing lets you display specific views of your application depending on the URL path. To add this functionality to your sample application, you need to update the `app.module.ts` file to use the module, `RouterModule`. You import this module from `@angular/router`.
+
+1. From your code editor, open the `app.module.ts` file.
+
+2. Add the following `import` statement.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   import { RouterModule } from '@angular/router';
+   ```
+
+
+<hr>
+
+
+
+#### Define your routes
+
+In this section, you'll define two routes:
+
+- The route `/crisis-center` opens the `crisis-center` component.
+- The route `/heroes-list` opens the `heroes-list` component.
+
+A route definition is a JavaScript object. Each route typically has two properties. The first property, `path`, is a string that specifies the URL path for the route. The second property, `component`, is a string that specifies what component your application should display for that path.
+
+1. From your code editor, open the `app.module.ts` file.
+
+2. Locate the `@NgModule()` section.
+
+3. Replace the `imports` array in that section with the following.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   imports: [
+     BrowserModule,
+     RouterModule.forRoot([
+       {path: 'crisis-list', component: CrisisListComponent},
+       {path: 'heroes-list', component: HeroesListComponent},
+     ]),
+   ],
+   ```
+
+This code adds the `RouterModule` to the `imports` array. Next, the code uses the `forRoot()` method of the `RouterModule` to define your two routes. This method takes an array of JavaScript objects, with each object defining the properties of a route. The `forRoot()` method ensures that your application only instantiates one `RouterModule`. For more information, see [Singleton Services](https://angular.io/guide/singleton-services#forroot-and-the-router).
+
+
+
+<hr>
+
+
+
+#### Update your component with `router-outlet`
+
+At this point, you have defined two routes for your application. However, your application still has both the `crisis-list` and `heroes-list` components hard-coded in your `app.component.html` template. For your routes to work, you need to update your template to dynamically load a component based on the URL path.
+
+To implement this functionality, you add the `router-outlet` directive to your template file.
+
+1. From your code editor, open the `app.component.html` file.
+
+2. Delete the following lines.
+
+   (src/app/app.component.html)
+
+   ```html
+   <app-crisis-list></app-crisis-list>
+   <app-heroes-list></app-heroes-list>
+   ```
+
+3. Add the `router-outlet` directive.
+
+   (src/app/app.component.html)
+
+   ```html
+   <router-outlet></router-outlet>
+   ```
+
+   
+
+View your updated application in your browser. You should see only the application title. To view the `crisis-list` component, add `crisis-list` to the end of the path in your browser's address bar. For example:
+
+```http
+http://localhost:4200/crisis-list
+```
+
+Notice that the `crisis-list` component displays. Angular is using the route you defined to dynamically load the component. You can load the `heroes-list` component the same way:
+
+```http
+http://localhost:4200/heroes-list
+```
+
+
+
+<hr>
+
+
+
+#### Control navigation with UI elements
+
+Currently, your application supports two routes. However, the only way to use those routes is for the user to manually type the path in the browser's address bar. In this section, you'll add two links that users can click to navigate between the `heroes-list` and `crisis-list` components. You'll also add some CSS styles. While these styles are not required, they make it easier to identify the link for the currently-displayed component. You'll add that functionality in the next section.
+
+1. Open the `app.component.html` file and add the following HTML below the title.
+
+   (src/app/app.component.html)
+
+   ```html
+   <nav>
+     <a class="button" routerLink="/crisis-list">Crisis Center</a> |
+     <a class="button" routerLink="/heroes-list">Heroes</a>
+   </nav>
+   ```
+
+   This HTML uses an Angular directive, `routerLink`. This directive connects the routes you defined to your template files.
+
+2. Open the `app.component.css` file and add the following styles.
+
+   (src/app/app.component.css)
+
+   ```css
+   .button {
+       box-shadow: inset 0 1px 0 0 #ffffff;
+       background: #ffffff linear-gradient(to bottom, #ffffff 5%, #f6f6f6 100%);
+       border-radius: 6px;
+       border: 1px solid #dcdcdc;
+       display: inline-block;
+       cursor: pointer;
+       color: #666666;
+       font-family: Arial, sans-serif;
+       font-size: 15px;
+       font-weight: bold;
+       padding: 6px 24px;
+       text-decoration: none;
+       text-shadow: 0 1px 0 #ffffff;
+       outline: 0;
+   }
+   .activebutton {
+       box-shadow: inset 0 1px 0 0 #dcecfb;
+       background: #bddbfa linear-gradient(to bottom, #bddbfa 5%, #80b5ea 100%);
+       border: 1px solid #84bbf3;
+       color: #ffffff;
+       text-shadow: 0 1px 0 #528ecc;
+   }
+   ```
+
+If you view your application in the browser, you should see these two links. When you click on a link, the corresponding component appears.
+
+
+
+<hr>
+
+#### Identify the active route
+
+While users can navigate your application using the links you added in the previous section, they don't have a straightforward way to identify what the active route is. Add this functionality using Angular's `routerLinkActive` directive.
+
+1. From your code editor, open the `app.component.html` file.
+
+2. Update the anchor tags to include the `routerLinkActive` directive.
+
+   (src/app/app.component.html)
+
+   ```html
+   <nav>
+     <a class="button"
+        routerLink="/crisis-list"
+        routerLinkActive="activebutton"
+        ariaCurrentWhenActive="page">
+       Crisis Center
+     </a> |
+     <a class="button"
+        routerLink="/heroes-list"
+        routerLinkActive="activebutton"
+        ariaCurrentWhenActive="page">
+       Heroes
+     </a>
+   </nav>
+   ```
+
+   View your application again. As you click one of the buttons, the style for that button updates automatically, identifying the active component to the user. By adding the `routerLinkActive` directive, you inform your application to apply a specific CSS class to the active route. In this tutorial, that CSS class is `activebutton`, but you could use any class that you want.
+
+   Note that we are also specifying a value for the `routerLinkActive`'s `ariaCurrentWhenActive`. This makes sure that visually impaired users (which may not perceive the different styling being applied) can also identify the active button. For more information see the Accessibility Best Practices [Active links identification section](https://angular.io/guide/accessibility#active-links-identification).
+
+
+
+<hr>
+
+
+
+#### Adding a redirect
+
+In this step of the tutorial, you add a route that redirects the user to display the `/heroes-list` component.
+
+1. From your code editor, open the `app.module.ts` file.
+
+2. In the `imports` array, update the `RouterModule` section as follows.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   imports: [
+     BrowserModule,
+     RouterModule.forRoot([
+       {path: 'crisis-list', component: CrisisListComponent},
+       {path: 'heroes-list', component: HeroesListComponent},
+       {path: '', redirectTo: '/heroes-list', pathMatch: 'full'},
+     ]),
+   ],
+   ```
+
+   Notice that this new route uses an empty string as its path.
+
+    In addition, it replaces the `component` property with two new ones:
+
+   | PROPERTIES   | DETAILS                                                      |
+   | :----------- | :----------------------------------------------------------- |
+   | `redirectTo` | This property instructs Angular to redirect from an empty path to the `heroes-list` path. |
+   | `pathMatch`  | This property instructs Angular on how much of the URL to match. For this tutorial, you should set this property to `full`. This strategy is recommended when you have an empty string for a path. For more information about this property, see the [Route API documentation](https://angular.io/api/router/Route). |
+
+
+
+Now when you open your application, it displays the `heroes-list` component by default.
+
+
+
+<hr>
+
+#### Adding a 404 page
+
+It is possible for a user to try to access a route that you have not defined. To account for this behavior, the best practice is to display a 404 page. In this section, you'll create a 404 page and update your route configuration to show that page for any unspecified routes.
+
+1. From the terminal, create a new component, `PageNotFound`.
+
+   ```shell
+   ng generate component page-not-found
+   ```
+
+2. From your code editor, open the `page-not-found.component.html` file and replace its contents with the following HTML.
+
+   (src/app/page-not-found/page-not-found.component.html)
+
+   ```html
+   <h2>Page Not Found</h2>
+   <p>We couldn't find that page! Not even with x-ray vision.</p>
+   ```
+
+3. Open the `app.module.ts` file. In the `imports` array, update the `RouterModule` section as follows.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   imports: [
+     BrowserModule,
+     RouterModule.forRoot([
+       {path: 'crisis-list', component: CrisisListComponent},
+       {path: 'heroes-list', component: HeroesListComponent},
+       {path: '', redirectTo: '/heroes-list', pathMatch: 'full'},
+       {path: '**', component: PageNotFoundComponent}
+     ]),
+   ],
+   ```
+
+   The new route uses a path, `**`. This path is how Angular identifies a wildcard route. Any route that does not match an existing route in your configuration will use this route.
+
+   
+
+   **Notice that the wildcard route is placed at the end of the array. The order of your routes is important, as Angular applies routes in order and uses the first match it finds.**
+
+
+
+Try navigating to a non-existing route on your application, such as `http://localhost:4200/powers`. This route doesn't match anything defined in your `app.module.ts` file. However, because you defined a wildcard route, the application automatically displays your `PageNotFound` component.
+
+
+
+<hr>
+
+
+
+### 2.Creating custom route matches
+
+The Angular Router supports a powerful matching strategy that you can use to help users navigate your application. This matching strategy supports static routes, variable routes with parameters, wildcard routes, and so on. Also, build your own custom pattern matching for situations in which the URLs are more complicated.
+
+In this tutorial, you'll build a custom route matcher using Angular's `UrlMatcher`. This matcher looks for a Twitter handle in the URL.
+
+For a working example of the final version of this tutorial, see the [live example](https://angular.io/generated/live-examples/routing-with-urlmatcher/stackblitz.html) / [download example](https://angular.io/generated/zips/routing-with-urlmatcher/routing-with-urlmatcher.zip).
+
+
+
+<hr>
+
+
+
+#### Objectives
+
+Implement Angular's `UrlMatcher` to create a custom route matcher.
+
+#### Prerequisites
+
+To complete this tutorial, you should have a basic understanding of the following concepts:
+
+- JavaScript
+- HTML
+- CSS
+- [Angular CLI](https://angular.io/cli)
+
+If you are unfamiliar with how Angular's router works, review [Using Angular routes in a single-page application](https://angular.io/guide/router-tutorial).
+
+
+
+<hr>
+
+
+
+#### Create a sample application
+
+Using the Angular CLI, create a new application, *angular-custom-route-match*. In addition to the default Angular application framework, you will also create a *profile* component.
+
+1. Create a new Angular project, *angular-custom-route-match*.
+
+   ```shell
+   ng new angular-custom-route-match
+   ```
+
+   When prompted with `Would you like to add Angular routing?`, select `Y`.
+
+   When prompted with `Which stylesheet format would you like to use?`, select `CSS`.
+
+   After a few moments, a new project, `angular-custom-route-match`, is ready.
+
+2. From your terminal, navigate to the `angular-custom-route-match` directory.
+
+3. Create a component, *profile*.
+
+   ```shell
+   ng generate component profile
+   ```
+
+4. In your code editor, locate the file, `profile.component.html` and replace the placeholder content with the following HTML.
+
+   (src/app/profile/profile.component.html)
+
+   ```html
+   content_copy<p>
+   Hello {{ username$ | async }}!
+   </p>
+   ```
+
+5. In your code editor, locate the file, `app.component.html` and replace the placeholder content with the following HTML.
+
+   (src/app/app.component.html)
+
+   ```html
+   <h2>Routing with Custom Matching</h2>
+   
+   Navigate to <a routerLink="/@Angular">my profile</a>
+   
+   <router-outlet></router-outlet>
+   ```
+
+   
+
+<hr>
+
+
+
+#### Configure your routes for your application
+
+With your application framework in place, you next need to add routing capabilities to the `app.module.ts` file. As a part of this process, you will create a custom URL matcher that looks for a Twitter handle in the URL. This handle is identified by a preceding `@` symbol.
+
+1. In your code editor, open your `app.module.ts` file.
+
+2. Add an `import` statement for Angular's `RouterModule` and `UrlMatcher`.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   import { RouterModule, UrlSegment } from '@angular/router';
+   ```
+
+3. In the imports array, add a `RouterModule.forRoot([])` statement.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   @NgModule({
+     imports:      [
+       BrowserModule,
+       FormsModule,
+       RouterModule.forRoot([
+   /* . . . */
+       ])],
+     declarations: [ AppComponent, ProfileComponent ],
+     bootstrap:    [ AppComponent ]
+   })
+   ```
+
+4. Define the custom route matcher by adding the following code to the `RouterModule.forRoot()` statement.
+
+   (src/app/app.module.ts)
+
+   ```typescript
+   {
+     matcher: (url) => {
+       if (url.length === 1 && url[0].path.match(/^@[\w]+$/gm)) {
+         return {
+           consumed: url,
+           posParams: {
+             username: new UrlSegment(url[0].path.slice(1), {})
+           }
+         };
+       }
+   
+       return null;
+     },
+     component: ProfileComponent
+   }
+   ```
+
+   
+
+This custom matcher is a function that performs the following tasks:
+
+- The matcher verifies that the array contains only one segment
+- The matcher employs a regular expression to ensure that the format of the username is a match
+- If there is a match, the function returns the entire URL, defining a `username` route parameter as a substring of the path
+- If there isn't a match, the function returns null and the router continues to look for other routes that match the URL
+
+A custom URL matcher behaves like any other route definition. Define child routes or lazy loaded routes as you would with any other route.
+
+
+
+<hr>
+
+
+
+#### Subscribe to the route parameters
+
+With the custom matcher in place, you now need to subscribe to the route parameters in the `profile` component.
+
+1. In your code editor, open your `profile.component.ts` file.
+
+2. Add an `import` statement for Angular's `ActivatedRoute` and `ParamMap`.
+
+   (src/app/profile/profile.component.ts)
+
+   ```typescript
+   import { ActivatedRoute, ParamMap } from '@angular/router';
+   ```
+
+3. Add an `import` statement for RxJS `map`.
+
+   (src/app/profile/profile.component.ts)
+
+   ```typescript
+   import { map } from 'rxjs/operators';
+   ```
+
+4. Subscribe to the `username` route parameter.
+
+   (src/app/profile/profile.component.ts)
+
+   ```typescript
+   username$ = this.route.paramMap
+     .pipe(
+       map((params: ParamMap) => params.get('username'))
+     );
+   ```
+
+5. Inject the `ActivatedRoute` into the component's constructor.
+
+   (src/app/profile/profile.component.ts)
+
+   ```typescript
+   constructor(private route: ActivatedRoute) { }
+   ```
+
+
+
+
+
+<hr>
+
+
+
+### 3.Tour of Heroes
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2858,3 +3559,79 @@ interface HeroesService {
 }
 ```
 
+```typescript
+const ALTER_EGOS = ['Eric'];
+
+@Injectable({ providedIn: 'root' })
+export class HeroesService {
+    isAlterEgoTaken(alterEgo: string): Observable<boolean> {
+        console.log('alterEgo name>>>', alterEgo);
+
+        const isTaken = ALTER_EGOS.includes(alterEgo);
+        return of(isTaken).pipe(delay(400));
+    }
+}
+```
+
+
+
+ In a real world application, the `HeroesService` would be responsible for making an HTTP request to the hero database to check if the alter ego is available. From the validator's point of view, the actual implementation of the service is not important, so the example can just code against the `HeroesService` interface.
+
+As the validation begins, the `UniqueAlterEgoValidator` delegates to the `HeroesService` `isAlterEgoTaken()` method with the current control value. At this point the control is marked as `pending` and remains in this state until the observable chain returned from the `validate()` method completes.
+
+The `isAlterEgoTaken()` method dispatches an HTTP request that checks if the alter ego is available, and returns `Observable<boolean>` as the result. The `validate()` method pipes the response through the `map` operator and transforms it into a validation result.
+
+The method then, like any validator, returns `null` if the form is valid, and `ValidationErrors` if it is not. This validator handles any potential errors with the `catchError` operator. In this case, the validator treats the `isAlterEgoTaken()` error as a successful validation, because failure to make a validation request does not necessarily mean that the alter ego is invalid. You could handle the error differently and return the `ValidationError` object instead.
+
+After some time passes, the observable chain completes and the asynchronous validation is done. The `pending` flag is set to `false`, and the form validity is updated.
+
+
+
+#### Adding async validators to reactive forms
+
+To use an async validator in reactive forms, begin by injecting the validator into the constructor of the component class.
+
+```typescript
+constructor(private alterEgoValidator: UniqueAlterEgoValidator) {}
+```
+
+Then, pass the validator function directly to the `FormControl` to apply it.
+
+In the following example, the `validate` function of `UniqueAlterEgoValidator` is applied to `alterEgoControl` by passing it to the control's `asyncValidators` option and binding it to the instance of `UniqueAlterEgoValidator` that was injected into `HeroFormReactiveComponent`. The value of `asyncValidators` can be either a single async validator function, or an array of functions. To learn more about `FormControl` options, see the [AbstractControlOptions](https://angular.io/api/forms/AbstractControlOptions) API reference.
+
+```typescript
+const alterEgoControl = new FormControl('', {
+  asyncValidators: [this.alterEgoValidator.validate.bind(this.alterEgoValidator)],
+  updateOn: 'blur'
+});
+```
+
+
+
+#### Optimizing performance of async validators
+
+By default, all validators run after every form value change. With synchronous validators, this does not normally have a noticeable impact on application performance. Async validators, however, commonly perform some kind of HTTP request to validate the control. Dispatching an HTTP request after every keystroke could put a strain on the backend API, and should be avoided if possible.
+
+You can delay updating the form validity by changing the `updateOn` property from `change` (default) to `submit` or `blur`.
+
+With template-driven forms, set the property in the template.
+
+
+
+With template-driven forms, set the property in the template.
+
+```html
+<input [(ngModel)]="name" [ngModelOptions]="{updateOn: 'blur'}">
+```
+
+With reactive forms, set the property in the `FormControl` instance.
+
+```typescript
+new FormControl('', {updateOn: 'blur'});
+```
+
+
+
+#### Interaction with native HTML form validation
+
+By default, Angular disables [native HTML form validation](https://developer.mozilla.org/docs/Web/Guide/HTML/Constraint_validation) by adding the `novalidate` attribute on the enclosing `<form>` and uses directives to match these attributes with validator functions in the framework. If you want to use native validation **in combination** with Angular-based validation, you can re-enable it with the `ngNativeValidate` directive. See the [API docs](https://angular.io/api/forms/NgForm#native-dom-validation-ui) for details.
