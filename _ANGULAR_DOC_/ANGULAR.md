@@ -2178,7 +2178,7 @@ Using the Angular CLI, create a new application, *angular-router-sample*. This a
    
 
    <hr>
-
+   
    
 
 #### Import `RouterModule` from `@angular/router`
@@ -2548,7 +2548,7 @@ Using the Angular CLI, create a new application, *angular-custom-route-match*. I
 
 #### Configure your routes for your application
 
-With your application framework in place, you next need to add routing capabilities to the `app.module.ts` file. As a part of this process, you will create a custom URL matcher that looks for a Twitter handle in the URL. This handle is identified by a preceding `@` symbol.
+With your application framework in place, you next need to add routing capabilities to the `app.module.ts` file. As a part of this process, you will create a custom URL matcher that looks for a **Twitter handle** ('@') in the URL. This handle is identified by a preceding `@` symbol.
 
 1. In your code editor, open your `app.module.ts` file.
 
@@ -2669,7 +2669,647 @@ With the custom matcher in place, you now need to subscribe to the route paramet
 
 
 
+This tutorial provides an extensive overview of the Angular router. In this tutorial, you build upon a basic router configuration to explore features such as child routes, route parameters, lazy load NgModules, guard routes, and preloading data to improve the user experience.
 
+For a working example of the final version of the app, see the [live example](https://angular.io/generated/live-examples/router/stackblitz.html) / [download example](https://angular.io/generated/zips/router/router.zip).
+
+
+
+<hr>
+
+#### Objectives
+
+This guide describes development of a multi-page routed sample application. Along the way, it highlights key features of the router such as:
+
+- Organizing the application features into modules
+- Navigating to a component (*Heroes* link to "Heroes List")
+- Including a route parameter (passing the Hero `id` while routing to the "Hero Detail")
+- Child routes (the *Crisis Center* has its own routes)
+- The `canActivate` guard (checking route access)
+- The `canActivateChild` guard (checking child route access)
+- The `canDeactivate` guard (ask permission to discard unsaved changes)
+- The `resolve` guard (pre-fetching route data)
+- Lazy loading an `NgModule`
+- The `canMatch` guard (check before loading feature module assets)
+
+This guide proceeds as a sequence of milestones as if you were building the application step-by-step, but assumes you are familiar with basic [Angular concepts](https://angular.io/guide/architecture). For a general introduction to angular, see the [Getting Started](https://angular.io/start). For a more in-depth overview, see the [Tour of Heroes](https://angular.io/tutorial/tour-of-heroes) tutorial.
+
+#### Prerequisites
+
+To complete this tutorial, you should have a basic understanding of the following concepts:
+
+- JavaScript
+- HTML
+- CSS
+- [Angular CLI](https://angular.io/cli)
+
+You might find the [Tour of Heroes tutorial](https://angular.io/tutorial/tour-of-heroes) helpful, but it is not required.
+
+
+
+<hr>
+
+
+
+#### The sample application in action
+
+The sample application for this tutorial helps the Hero Employment Agency find crises for heroes to solve.
+
+The application has three main feature areas:
+
+1. A *Crisis Center* for maintaining the list of crises for assignment to heroes.
+2. A *Heroes* area for maintaining the list of heroes employed by the agency.
+3. An *Admin* area to manage the list of crises and heroes.
+
+Try it by clicking on this [live example link](https://angular.io/generated/live-examples/router/stackblitz.html) / [download example](https://angular.io/generated/zips/router/router.zip).
+
+The application renders with a row of navigation buttons and the *Heroes* view with its list of heroes.
+
+
+
+![](./img/hero-list.gif) 
+
+
+
+Select one hero and the application takes you to a hero editing screen.
+
+![](./img/hero-detail.png) 
+
+Alter the name. Click the "Back" button and the application returns to the heroes list which displays the changed hero name. Notice that the name change took effect immediately.
+
+Had you clicked the browser's back button instead of the application's "Back" button, the application would have returned you to the heroes list as well. Angular application navigation updates the browser history as normal web navigation does.
+
+Now click the *Crisis Center* link for a list of ongoing crises.
+
+![](./img/crisis-center-list.gif) 
+
+
+
+Select a crisis and the application takes you to a crisis editing screen. The *Crisis Detail* appears in a child component on the same page, beneath the list.
+
+Alter the name of a crisis. Notice that the corresponding name in the crisis list does *not* change.
+
+![](./img/crisis-center-detail.gif) 
+
+Unlike *Hero Detail*, which updates as you type, *Crisis Detail* changes are temporary until you either save or discard them by pressing the "Save" or "Cancel" buttons. Both buttons navigate back to the *Crisis Center* and its list of crises.
+
+
+
+Click the browser back button or the "Heroes" link to activate a dialog.
+
+![](./img/confirm-dialog.png) 
+
+You can say "OK" and lose your changes or click "Cancel" and continue editing.
+
+Behind this behavior is the router's `canDeactivate` guard. The guard gives you a chance to clean up or ask the user's permission before navigating away from the current view.
+
+The `Admin` and `Login` buttons illustrate other router capabilities covered later in the guide.
+
+<hr>
+
+#### Milestone 1: Getting started
+
+Begin with a basic version of the application that navigates between two empty views.
+
+![](./img/router-1-anim.gif) 
+
+
+
+##### Create a sample application
+
+1. Create a new Angular project, *angular-router-tour-of-heroes*.
+
+   ```shell
+   ng new angular-router-tour-of-heroes
+   ```
+
+   When prompted with `Would you like to add Angular routing?`, select `N`.
+
+   When prompted with `Which stylesheet format would you like to use?`, select `CSS`.
+
+   After a few moments, a new project, `angular-router-tour-of-heroes`, is ready.
+
+2. From your terminal, navigate to the `angular-router-tour-of-heroes` directory.
+
+3. Verify that your new application runs as expected by running the `ng serve` command.
+
+   ```shell
+   ng serve
+   ```
+
+4. Open a browser to `http://localhost:4200`.
+
+   You should see the application running in your browser.
+
+
+
+##### 1.Define Routes
+
+A router must be configured with a list of route definitions.
+
+Each definition translates to a [Route](https://angular.io/api/router/Route) object which has two things: a `path`, the URL path segment for this route; and a `component`, the component associated with this route.
+
+The router draws upon its registry of definitions when the browser URL changes or when application code tells the router to navigate along a route path.
+
+The first route does the following:
+
+- When the browser's location URL changes to match the path segment `/crisis-center`, then the router activates an instance of the `CrisisListComponent` and displays its view
+- When the application requests navigation to the path `/crisis-center`, the router activates an instance of `CrisisListComponent`, displays its view, and updates the browser's address location and history with the URL for that path
+
+The first configuration defines an array of two routes with minimal paths leading to the `CrisisListComponent` and `HeroListComponent`.
+
+
+
+Generate the `CrisisList` and `HeroList` components so that the router has something to render.
+
+```shell
+ng generate component crisis-list
+ng generate component hero-list
+```
+
+
+
+Replace the contents of each component with the following sample HTML.
+
+(src/app/crisis-list/crisis-list.component.html)
+
+```html
+<h2>CRISIS CENTER</h2>
+<p>Get your crisis here</p>
+```
+
+(src/app/hero-list/hero-list.component.html)
+
+```html
+<h2>HEROES</h2>
+<p>Get your heroes here</p>
+```
+
+
+
+##### 2.Register `Router` and `Routes`
+
+To use the `Router`, you must first register the `RouterModule` from the `@angular/router` package. Define an array of routes, `appRoutes`, and pass them to the `RouterModule.forRoot()` method. The `RouterModule.forRoot()` method returns a module that contains the configured `Router` service provider, plus other providers that the routing library requires. Once the application is bootstrapped, the `Router` performs the initial navigation based on the current browser URL.
+
+
+
+**NOTE**:
+**The `RouterModule.forRoot()` method is a pattern used to register application-wide providers. Read more about application-wide providers in the [Singleton services](https://angular.io/guide/singleton-services#forRoot-router) guide.**
+
+
+
+
+
+( src/app/app.module.ts (first-config) ) 
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { RouterModule, Routes } from '@angular/router';
+
+import { AppComponent } from './app.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { HeroListComponent } from './hero-list/hero-list.component';
+
+const appRoutes: Routes = [
+  { path: 'crisis-center', component: CrisisListComponent },
+  { path: 'heroes', component: HeroListComponent },
+];
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    FormsModule,
+    RouterModule.forRoot(
+      appRoutes,
+      { enableTracing: true } // <-- debugging purposes only
+    )
+  ],
+  declarations: [
+    AppComponent,
+    HeroListComponent,
+    CrisisListComponent,
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
+```
+
+
+
+Adding the configured `RouterModule` to the `AppModule` is sufficient for minimal route configurations. 
+
+**However, as the application grows, [refactor the routing configuration](https://angular.io/guide/router-tutorial-toh#refactor-the-routing-configuration-into-a-routing-module) into a separate file and create a [Routing Module](https://angular.io/guide/router-tutorial-toh#routing-module). A routing module is a special type of `Service Module` dedicated to routing.**
+
+
+
+Registering the `RouterModule.forRoot()` in the `AppModule` `imports` array makes the `Router` service available everywhere in the application.
+
+
+
+##### 3.Add the Router Outlet
+
+The root `AppComponent` is the application shell. It has a title, a navigation bar with two links, and a router outlet where the router renders components.
+
+![](./img/shell-and-outlet.gif) 
+
+The router outlet serves as a placeholder where the routed components are rendered.
+
+
+
+The corresponding component template looks like this:
+
+( src/app/app.component.html )
+
+```html
+<h1>Angular Router</h1>
+<nav>
+  <a routerLink="/crisis-center" routerLinkActive="active" ariaCurrentWhenActive="page">Crisis Center</a>
+  <a routerLink="/heroes" routerLinkActive="active" ariaCurrentWhenActive="page">Heroes</a>
+</nav>
+<router-outlet></router-outlet>
+```
+
+
+
+##### Define a Wildcard route
+
+You've created two routes in the application so far, one to `/crisis-center` and the other to `/heroes`. Any other URL causes the router to throw an error and crash the app.
+
+Add a wildcard route to intercept invalid URLs and handle them gracefully. A wildcard route has a path consisting of two asterisks. It matches every URL. Thus, the router selects this wildcard route if it can't match a route earlier in the configuration. A wildcard route can navigate to a custom "404 Not Found" component or [redirect](https://angular.io/guide/router-tutorial-toh#redirect) to an existing route.
+
+
+
+**The router selects the route with a [*first match wins*](https://angular.io/guide/router-reference#example-config) strategy. Because a wildcard route is the least specific route, place it last in the route configuration.**
+
+
+
+To test this feature, add a button with a `RouterLink` to the `HeroListComponent` template and set the link to a non-existent route called `"/sidekicks"`.
+
+( src/app/hero-list/hero-list.component.html (excerpt) )
+
+```html
+<h2>HEROES</h2>
+<p>Get your heroes here</p>
+
+<button type="button" routerLink="/sidekicks">Go to sidekicks</button>
+```
+
+The application fails if the user clicks that button because you haven't defined a `"/sidekicks"` route yet.
+
+Instead of adding the `"/sidekicks"` route, define a `wildcard` route and have it navigate to a `PageNotFoundComponent`.
+
+( src/app/app.module.ts (wildcard) )
+
+```typescript
+{ path: '**', component: PageNotFoundComponent }
+```
+
+Create the `PageNotFoundComponent` to display when users visit invalid URLs.
+
+```shell
+ng generate component page-not-found
+```
+
+
+
+( src/app/page-not-found.component.html (404 component) )
+
+```html
+<h2>Page not found</h2>
+```
+
+Now when the user visits `/sidekicks`, or any other invalid URL, the browser displays "Page not found". The browser address bar continues to point to the invalid URL.
+
+
+
+##### Set up redirects
+
+When the application launches, the initial URL in the browser bar is by default:
+
+```http
+localhost:4200
+```
+
+That doesn't match any of the hard-coded routes which means the router falls through to the wildcard route and displays the `PageNotFoundComponent`.
+
+The application needs a default route to a valid page. The default page for this application is the list of heroes. The application should navigate there as if the user clicked the "Heroes" link or pasted `localhost:4200/heroes` into the address bar.
+
+Add a `redirect` route that translates the initial relative URL (`''`) to the default path (`/heroes`) you want.
+
+Add the default route somewhere *above* the wildcard route. It's just above the wildcard route in the following excerpt showing the complete `appRoutes` for this milestone.
+
+
+
+( src/app/app-routing.module.ts (appRoutes) )
+
+```typescript
+const appRoutes: Routes = [
+  { path: 'crisis-center', component: CrisisListComponent },
+  { path: 'heroes',        component: HeroListComponent },
+  { path: '',   redirectTo: '/heroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+```
+
+The browser address bar shows `.../heroes` as if you'd navigated there directly.
+
+
+
+A redirect route requires a `pathMatch` property to tell the router how to match a URL to the path of a route. In this app, the router should select the route to the `HeroListComponent` only when the *entire URL* matches `''`, so set the `pathMatch` value to `'full'`.
+
+
+
+**SPOTLIGHT ON PATHMATCH**
+
+Technically, `pathMatch = 'full'` results in a route hit when the *remaining*, unmatched segments of the URL match `''`. In this example, the redirect is in a top level route so the *remaining* URL and the *entire* URL are the same thing.
+
+The other possible `pathMatch` value is `'prefix'` which tells the router to match the redirect route when the remaining URL begins with the redirect route's prefix path. This doesn't apply to this sample application because if the `pathMatch` value were `'prefix'`, every URL would match `''`.
+
+Try setting it to `'prefix'` and clicking the `Go to sidekicks` button. Because that's a bad URL, you should see the "Page not found" page. Instead, you're still on the "Heroes" page. Enter a bad URL in the browser address bar. You're instantly re-routed to `/heroes`. Every URL, good or bad, that falls through to this route definition is a match.
+
+The default route should redirect to the `HeroListComponent` only when the entire url is `''`. Remember to restore the redirect to `pathMatch = 'full'`.
+
+Learn more in Victor Savkin's [post on redirects](https://vsavkin.tumblr.com/post/146722301646/angular-router-empty-paths-componentless-routes).
+
+
+
+##### Milestone 1 wrap up
+
+Your sample application can switch between two views when the user clicks a link.
+
+Milestone 1 covered how to do the following:
+
+- Load the router library
+- Add a nav bar to the shell template with anchor tags, `routerLink` and `routerLinkActive` directives
+- Add a `router-outlet` to the shell template where views are displayed
+- Configure the router module with `RouterModule.forRoot()`
+- Set the router to compose HTML5 browser URLs
+- Handle invalid routes with a `wildcard` route
+- Navigate to the default route when the application launches with an empty path
+
+The starter application's structure looks like this:
+
+![](./img/starter_struc.png) 
+
+
+
+(app.component.html)
+
+```html
+<h1>Angular Router</h1>
+<nav>
+  <a routerLink="/crisis-center" routerLinkActive="active" ariaCurrentWhenActive="page">Crisis Center</a>
+  <a routerLink="/heroes" routerLinkActive="active" ariaCurrentWhenActive="page">Heroes</a>
+</nav>
+<router-outlet></router-outlet>
+```
+
+
+
+(app.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { RouterModule, Routes } from '@angular/router';
+
+import { AppComponent } from './app.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+const appRoutes: Routes = [
+  { path: 'crisis-center', component: CrisisListComponent },
+  { path: 'heroes', component: HeroListComponent },
+
+  { path: '',   redirectTo: '/heroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    FormsModule,
+    RouterModule.forRoot(
+      appRoutes,
+      { enableTracing: true } // <-- debugging purposes only
+    )
+  ],
+  declarations: [
+    AppComponent,
+    HeroListComponent,
+    CrisisListComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
+```
+
+
+
+(hero-list/hero-list.component.html)
+
+```typescript
+<h2>HEROES</h2>
+<p>Get your heroes here</p>
+
+<button type="button" routerLink="/sidekicks">Go to sidekicks</button>
+```
+
+
+
+(crisis-list/crisis-list.component.html)
+
+```html
+<h2>CRISIS CENTER</h2>
+<p>Get your crisis here</p>
+```
+
+
+
+(page-not-found/page-not-found.component.html)
+
+```html
+<h2>Page not found</h2>
+```
+
+
+
+(index.html)
+
+```html
+<html lang="en">
+  <head>
+    <!-- Set the base href -->
+    <base href="/">
+    <title>Angular Router</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+
+  <body>
+    <app-root></app-root>
+  </body>
+
+</html>
+```
+
+
+
+
+
+#### Milestone 2: *Routing module*
+
+This milestone shows you how to configure a special-purpose module called a *Routing Module*, which holds your application's routing configuration.
+
+The Routing Module has several characteristics:
+
+- Separates routing concerns from other application concerns
+- Provides a module to replace or remove when testing the application
+- Provides a well-known location for routing service providers such as guards and resolvers
+- Does not declare components
+
+
+
+##### Integrate routing with your app
+
+The sample routing application does not include routing by default. When you use the [Angular CLI](https://angular.io/cli) to create a project that does use routing, set the `--routing` option for the project or application, and for each NgModule. When you create or initialize a new project (using the CLI [`ng new`](https://angular.io/cli/new) command) or a new application (using the [`ng generate app`](https://angular.io/cli/generate) command), specify the `--routing` option. This tells the CLI to include the `@angular/router` npm package and create a file named `app-routing.module.ts`. You can then use routing in any NgModule that you add to the project or application.
+
+For example, the following command generates an NgModule that can use routing.
+
+```shell
+ng generate module my-module --routing
+```
+
+This creates a separate file named `my-module-routing.module.ts` to store the NgModule's routes. The file includes an empty `Routes` object that you can fill with routes to different components and NgModules.
+
+
+
+##### Refactor the routing configuration into a routing module
+
+Create an `AppRouting` module in the `/app` folder to contain the routing configuration.
+
+```shell
+ng generate module app-routing --module app --flat
+```
+
+Import the `CrisisListComponent`, `HeroListComponent`, and `PageNotFoundComponent` symbols like you did in the `app.module.ts`. Then move the `Router` imports and routing configuration, including `RouterModule.forRoot()`, into this routing module.
+
+Re-export the Angular `RouterModule` by adding it to the module `exports` array. By re-exporting the `RouterModule` here, the components declared in `AppModule` have access to router directives such as `RouterLink` and `RouterOutlet`.
+
+
+
+After these steps, the file should look like this.
+
+(src/app/app-routing.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+const appRoutes: Routes = [
+  { path: 'crisis-center', component: CrisisListComponent },
+  { path: 'heroes',        component: HeroListComponent },
+  { path: '',   redirectTo: '/heroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forRoot(
+      appRoutes,
+      { enableTracing: true } // <-- debugging purposes only
+    )
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AppRoutingModule {}
+```
+
+
+
+Next, update the `app.module.ts` file by removing `RouterModule.forRoot` in the `imports` array.
+
+(src/app/app.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+
+import { AppComponent } from './app.component';
+import { AppRoutingModule } from './app-routing.module';
+
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    FormsModule,
+    AppRoutingModule
+  ],
+  declarations: [
+    AppComponent,
+    HeroListComponent,
+    CrisisListComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
+```
+
+
+
+**Later, this guide shows you how to create [multiple routing modules](https://angular.io/guide/router-tutorial-toh#heroes-functionality) and import those routing modules [in the correct order](https://angular.io/guide/router-tutorial-toh#routing-module-order).**
+
+
+
+The application continues to work just the same, and you can use `AppRoutingModule` as the central place to maintain future routing configuration.
+
+
+
+##### Benefits of a routing module
+
+The routing module, often called the `AppRoutingModule`, replaces the routing configuration in the root or feature module.
+
+The routing module is helpful as your application grows and when the configuration includes specialized guard and resolver functions.
+
+Some developers skip the routing module when the configuration is minimal and merge the routing configuration directly into the companion module (for example, `AppModule`).
+
+Most applications should implement a routing module for consistency. It keeps the code clean when configuration becomes complex. It makes testing the feature module easier. Its existence calls attention to the fact that a module is routed. It is where developers expect to find and expand routing configuration.
+
+
+
+#### Milestone 3: Heroes feature
+
+This milestone covers the following:
+
+- Organizing the application and routes into feature areas using modules
+- Navigating imperatively from one component to another
+- Passing required and optional information in route parameters
+
+This sample application recreates the heroes feature in the "Services" section of the [Tour of Heroes tutorial](https://angular.io/tutorial/tour-of-heroes/toh-pt4), and reuses much of the code from the [Tour of Heroes: Services example code](https://angular.io/generated/live-examples/toh-pt4/stackblitz.html) / [download example](https://angular.io/generated/zips/toh-pt4/toh-pt4.zip).
+
+A typical application has multiple feature areas, each dedicated to a particular business purpose with its own folder.
+
+This section shows you how refactor the application into different feature modules, import them into the main module and navigate among them.
+
+```http
+https://angular.io/guide/router-tutorial-toh#milestone-2-routing-module
+```
 
 
 
