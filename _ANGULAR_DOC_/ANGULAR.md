@@ -3307,15 +3307,385 @@ A typical application has multiple feature areas, each dedicated to a particular
 
 This section shows you how refactor the application into different feature modules, import them into the main module and navigate among them.
 
-```http
-https://angular.io/guide/router-tutorial-toh#milestone-2-routing-module
+
+
+##### Add heroes functionality
+
+Follow these steps:
+
+- To manage the heroes, create a `HeroesModule` with routing in the heroes folder and register it with the root `AppModule`.
+
+  ```shell
+  ng generate module heroes/heroes --module app --flat --routing
+  ```
+
+- Move the placeholder `hero-list` folder that's in the `app` folder into the `heroes` folder.
+
+- Copy the contents of the `heroes/heroes.component.html` from the ["Services" tutorial](https://angular.io/generated/live-examples/toh-pt4/stackblitz.html) / [download example](https://angular.io/generated/zips/toh-pt4/toh-pt4.zip) into the `hero-list.component.html` template.
+
+  - Re-label the `<h2>` to `<h2>HEROES</h2>`.
+  - Delete the `<app-hero-detail>` component at the bottom of the template.
+
+- Copy the contents of the `heroes/heroes.component.css` from the live example into the `hero-list.component.css` file.
+
+- Copy the contents of the `heroes/heroes.component.ts` from the live example into the `hero-list.component.ts` file.
+
+  - Change the component class name to `HeroListComponent`.
+
+  - Change the `selector` to `app-hero-list`.
+
+  - Change the `templateUrl` to `./hero-list.component.html`.
+
+  - Change the `styleUrls` to `./hero-list.component.css`.
+
+    **Selectors are not required for routed components because components are dynamically inserted when the page is rendered. However, they are useful for identifying and targeting them in your HTML element tree.**
+
+- Copy the `hero-detail` folder, the `hero.ts`, `hero.service.ts`, and `mock-heroes.ts` files into the `heroes` sub-folder
+
+- Copy the `message.service.ts` into the `src/app` folder
+
+- Update the relative path import to the `message.service` in the `hero.service.ts` file
+
+Next, update the `HeroesModule` metadata.
+
+- Import and add the `HeroDetailComponent` and `HeroListComponent` to the `declarations` array in the `HeroesModule`.
+
+​		(src/app/heroes/heroes.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { HeroDetailComponent } from './hero-detail/hero-detail.component';
+
+import { HeroesRoutingModule } from './heroes-routing.module';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    FormsModule,
+    HeroesRoutingModule
+  ],
+  declarations: [
+    HeroListComponent,
+    HeroDetailComponent
+  ]
+})
+export class HeroesModule {}
+```
+
+The hero management file structure is as follows:
+
+![](./img/hero_file_struc.png) 
+
+
+
+###### Hero feature routing requirements
+
+The heroes feature has two interacting components, the hero list and the hero detail. When you navigate to list view, it gets a list of heroes and displays them. When you click on a hero, the detail view has to display that particular hero.
+
+You tell the detail view which hero to display by including the selected hero's ID in the route URL.
+
+Import the hero components from their new locations in the `src/app/heroes/` folder and define the two hero routes.
+
+Now that you have routes for the `Heroes` module, register them with the `Router` using the `RouterModule` as you did in the `AppRoutingModule`, with an important difference.
+
+In the `AppRoutingModule`, you used the static `RouterModule.forRoot()` method to register the routes and application level service providers. In a feature module you use the static `forChild()` method.
+
+**Only call `RouterModule.forRoot()` in the root `AppRoutingModule` (or the `AppModule` if that's where you register top level application routes). In any other module, you must call the `RouterModule.forChild()` method to register additional routes.**
+
+The updated `HeroesRoutingModule` looks like this:
+
+(src/app/heroes/heroes-routing.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { HeroDetailComponent } from './hero-detail/hero-detail.component';
+
+const heroesRoutes: Routes = [
+  { path: 'heroes',  component: HeroListComponent },
+  { path: 'hero/:id', component: HeroDetailComponent }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(heroesRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class HeroesRoutingModule { }
+```
+
+
+
+###### Remove duplicate hero routes
+
+The hero routes are currently defined in two places: in the `HeroesRoutingModule`, by way of the `HeroesModule`, and in the `AppRoutingModule`.
+
+Routes provided by feature modules are combined together into their imported module's routes by the router. This lets you continue defining the feature module routes without modifying the main route configuration.
+
+Remove the `HeroListComponent` import and the `/heroes` route from the `app-routing.module.ts`.
+
+Leave the default and the wildcard routes as these are still in use at the top level of the application.
+
+( src/app/app-routing.module.ts (v2) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+// import { HeroListComponent } from './hero-list/hero-list.component';  // <-- delete this line
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+const appRoutes: Routes = [
+  { path: 'crisis-center', component: CrisisListComponent },
+  // { path: 'heroes',     component: HeroListComponent }, // <-- delete this line
+  { path: '',   redirectTo: '/heroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forRoot(
+      appRoutes,
+      { enableTracing: true } // <-- debugging purposes only
+    )
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AppRoutingModule {}
+```
+
+
+
+###### Remove heroes declarations
+
+Because the `HeroesModule` now provides the `HeroListComponent`, remove it from the `AppModule`'s `declarations` array. Now that you have a separate `HeroesModule`, you can evolve the hero feature with more components and different routes.
+
+After these steps, the `AppModule` should look like this:
+
+(src/app/app.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { AppComponent } from './app.component';
+import { AppRoutingModule } from './app-routing.module';
+import { HeroesModule } from './heroes/heroes.module';
+
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    FormsModule,
+    HeroesModule,
+    AppRoutingModule
+  ],
+  declarations: [
+    AppComponent,
+    CrisisListComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
 ```
 
 
 
 
 
+##### Module import order
 
+Notice that in the module `imports` array, the `AppRoutingModule` is last and comes *after* the `HeroesModule`.
+
+( src/app/app.module.ts (module-imports) )
+
+```typescript
+imports: [
+  BrowserModule,
+  FormsModule,
+  HeroesModule,
+  AppRoutingModule
+],
+```
+
+The order of route configuration is important because the router accepts the first route that matches a navigation request path.
+
+When all routes were in one `AppRoutingModule`, you put the default and [wildcard](https://angular.io/guide/router-tutorial-toh#wildcard) routes last, after the `/heroes` route, so that the router had a chance to match a URL to the `/heroes` route *before* hitting the wildcard route and navigating to "Page not found".
+
+Each routing module augments the route configuration in the order of import. If you listed `AppRoutingModule` first, the wildcard route would be registered *before* the hero routes. The wildcard route —which matches *every* URL— would intercept the attempt to navigate to a hero route.
+
+**Reverse the routing modules to see a click of the heroes link resulting in "Page not found". Learn about inspecting the runtime router configuration [below](https://angular.io/guide/router-tutorial-toh#inspect-config).**
+
+
+
+##### Route Parameters
+
+
+
+###### Route definition with a parameter
+
+Return to the `HeroesRoutingModule` and look at the route definitions again. 
+
+The route to `HeroDetailComponent` has an `:id` token in the path.
+
+( src/app/heroes/heroes-routing.module.ts (excerpt) )
+
+```typescript
+{ path: 'hero/:id', component: HeroDetailComponent }
+```
+
+The `:id` token creates a slot in the path for a Route Parameter. In this case, this configuration causes the router to insert the `id` of a hero into that slot.
+
+If you tell the router to navigate to the detail component and display "Magneta", you expect a hero ID to appear in the browser URL like this:
+
+```http
+localhost:4200/hero/15
+```
+
+If a user enters that URL into the browser address bar, the router should recognize the pattern and go to the same "Magneta" detail view.
+
+
+
+**ROUTE PARAMETER: REQUIRED OR OPTIONAL?**
+
+**Embedding the route parameter token, `:id`, in the route definition path is a good choice for this scenario because the `id` is *required* by the `HeroDetailComponent` and because the value `15` in the path clearly distinguishes the route to "Magneta" from a route for some other hero.**
+
+
+
+###### Setting the route parameters in the list view
+
+After navigating to the `HeroDetailComponent`, you expect to see the details of the selected hero. You need two pieces of information: the routing path to the component and the hero's `id`.
+
+Accordingly, the *link parameters array* has two items: The routing *path* and a *route parameter* that specifies the `id` of the selected hero.
+
+( src/app/heroes/hero-list/hero-list.component.html (link-parameters-array) )
+
+```typescript
+<a [routerLink]="['/hero', hero.id]">
+```
+
+The router composes the destination URL from the array like this: `localhost:4200/hero/15`.
+
+The router extracts the route parameter (`id:15`) from the URL and supplies it to the `HeroDetailComponent` using the `ActivatedRoute` service.
+
+
+
+##### `Activated Route` in action
+
+Import the `Router`, `ActivatedRoute`, and `ParamMap` tokens from the router package.
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (activated route) )
+
+```typescript
+import { Router, ActivatedRoute, ParamMap } from '@angular/router';
+```
+
+
+
+Import the `switchMap` operator because you need it later to process the `Observable` route parameters.
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (switchMap operator import) )
+
+```typescript
+import { switchMap } from 'rxjs/operators';
+```
+
+
+
+Add the services as private variables to the constructor so that Angular injects them (makes them visible to the component).
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (constructor) )
+
+```typescript
+constructor(
+  private route: ActivatedRoute,
+  private router: Router,
+  private service: HeroService
+) {}
+```
+
+
+
+In the `ngOnInit()` method, use the `ActivatedRoute` service to retrieve the parameters for the route, pull the hero `id` from the parameters, and retrieve the hero to display.
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (ngOnInit) )
+
+```typescript
+ngOnInit() {
+  this.hero$ = this.route.paramMap.pipe(
+    switchMap((params: ParamMap) =>
+      this.service.getHero(params.get('id')!))
+  );
+}
+```
+
+
+
+When the map changes, `paramMap` gets the `id` parameter from the changed parameters.
+
+Then you tell the `HeroService` to fetch the hero with that `id` and return the result of the `HeroService` request.
+
+The `switchMap` operator does two things. It flattens the `Observable<Hero>` that `HeroService` returns and cancels previous pending requests. If the user re-navigates to this route with a new `id` while the `HeroService` is still retrieving the old `id`, `switchMap` discards that old request and returns the hero for the new `id`.
+
+`AsyncPipe` handles the observable subscription and the component's `hero` property will be (re)set with the retrieved hero.
+
+
+
+###### `ParamMap` API
+
+The `ParamMap` API is inspired by the [URLSearchParams interface](https://developer.mozilla.org/docs/Web/API/URLSearchParams). It provides methods to handle parameter access for both route parameters (`paramMap`) and query parameters (`queryParamMap`).
+
+| MEMBER         | DETAILS                                                      |
+| :------------- | :----------------------------------------------------------- |
+| `has(name)`    | Returns `true` if the parameter name is in the map of parameters. |
+| `get(name)`    | Returns the parameter name value (a `string`) if present, or `null` if the parameter name is not in the map. Returns the *first* element if the parameter value is actually an array of values. |
+| `getAll(name)` | Returns a `string array` of the parameter name value if found, or an empty `array` if the parameter name value is not in the map. Use `getAll` when a single parameter could have multiple values. |
+| `keys`         | Returns a `string array` of all parameter names in the map.  |
+
+
+
+###### Observable `paramMap` and component reuse
+
+In this example, you retrieve the route parameter map from an `Observable`. That implies that the route parameter map can change during the lifetime of this component.
+
+By default, the router re-uses a component instance when it re-navigates to the same component type without visiting a different component first. The route parameters could change each time.
+
+Suppose a parent component navigation bar had "forward" and "back" buttons that scrolled through the list of heroes. Each click navigated imperatively to the `HeroDetailComponent` with the next or previous `id`.
+
+You wouldn't want the router to remove the current `HeroDetailComponent` instance from the DOM only to re-create it for the next `id` as this would re-render the view. For better UX, the router re-uses the same component instance and updates the parameter.
+
+Because `ngOnInit()` is only called once per component instantiation, you can detect when the route parameters change from *within the same instance* using the observable `paramMap` property.
+
+
+
+**When subscribing to an observable in a component, you almost always unsubscribe when the component is destroyed.**
+
+**However, `ActivatedRoute` observables are among the exceptions because `ActivatedRoute` and its observables are insulated from the `Router` itself. The `Router` destroys a routed component when it is no longer needed. This means all the component's members will also be destroyed, including the injected `ActivatedRoute` and the subscriptions to its `Observable` properties.**
+
+**The `Router` does not `complete` any `Observable` of the `ActivatedRoute` so any `finalize` or `complete` blocks will not run. If you need to handle something in a `finalize`, you still need to unsubscribe in `ngOnDestroy`. You also have to unsubscribe if your observable pipe has a delay with code you do not want to run after the component is destroyed.**
+
+
+
+...
+
+```http
+https://angular.io/guide/router-tutorial-toh#route-parameters
+```
 
 
 
