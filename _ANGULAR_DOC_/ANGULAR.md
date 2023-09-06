@@ -3681,11 +3681,476 @@ Because `ngOnInit()` is only called once per component instantiation, you can de
 
 
 
-...
+###### `snapshot`: the no-observable alternative
+
+This application won't re-use the `HeroDetailComponent`. The user always returns to the hero list to select another hero to view. There's no way to navigate from one hero detail to another hero detail without visiting the list component in between. Therefore, the router creates a new `HeroDetailComponent` instance every time.
+
+When you know for certain that a `HeroDetailComponent` instance will never be re-used, you can use `snapshot`.
+
+`route.snapshot` provides the initial value of the route parameter map. You can access the parameters directly without subscribing or adding observable operators as in the following:
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (ngOnInit snapshot) )
+
+```typescript
+ngOnInit() {
+  const id = this.route.snapshot.paramMap.get('id')!;
+
+  this.hero$ = this.service.getHero(id);
+}
+```
+
+**`snapshot` only gets the initial value of the parameter map with this technique.**
+
+**Use the observable `paramMap` approach if there's a possibility that the router could re-use the component. This tutorial sample application uses with the observable `paramMap`.**
+
+
+
+
+
+##### Navigating back to the list component
+
+The `HeroDetailComponent` "Back" button uses the `gotoHeroes()` method that navigates imperatively back to the `HeroListComponent`.
+
+The router `navigate()` method takes the same one-item *link parameters array* that you can bind to a `[routerLink]` directive. It holds the path to the `HeroListComponent`:
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (excerpt) )
+
+```typescript
+gotoHeroes() {
+  this.router.navigate(['/heroes']);
+}
+```
+
+
+
+###### Route Parameters: Required or optional?
+
+Use [route parameters](https://angular.io/guide/router-tutorial-toh#route-parameters) to specify a required parameter value within the route URL as you do when navigating to the `HeroDetailComponent` in order to view the hero with `id` 15:
 
 ```http
-https://angular.io/guide/router-tutorial-toh#route-parameters
+localhost:4200/hero/15
 ```
+
+
+
+You can also add optional information to a route request. For example, when returning to the `hero-detail.component.ts` list from the hero detail view, it would be nice if the viewed hero were preselected in the list.
+
+![](./img/selected-hero.png) 
+
+Optional information can also include other forms such as:
+
+- Loosely structured search criteria; for example, `name='wind*'`
+- Multiple values; for example, `after='12/31/2015' & before='1/1/2017'` —in no particular order— `before='1/1/2017' & after='12/31/2015'` — in a variety of formats— `during='currentYear'`
+
+As these kinds of parameters don't fit smoothly in a URL path, you can use optional parameters for conveying arbitrarily complex information during navigation. Optional parameters aren't involved in pattern matching and afford flexibility of expression.
+
+The router supports navigation with optional parameters as well as required route parameters. Define optional parameters in a separate object *after* you define the required route parameters.
+
+In general, use a required route parameter when the value is mandatory (for example, if necessary to distinguish one route path from another); and an optional parameter when the value is optional, complex, and/or multivariate.
+
+
+
+###### Heroes list: optionally selecting a hero
+
+When navigating to the `HeroDetailComponent` you specified the required `id` of the hero-to-edit in the route parameter and made it the second item of the [*link parameters array*](https://angular.io/guide/router-tutorial-toh#link-parameters-array).
+
+( src/app/heroes/hero-list/hero-list.component.html (link-parameters-array) )
+
+```html
+<a [routerLink]="['/hero', hero.id]">
+```
+
+The router embedded the `id` value in the navigation URL because you had defined it as a route parameter with an `:id` placeholder token in the route `path`:
+
+( src/app/heroes/heroes-routing.module.ts (hero-detail-route) )
+
+```typescript
+{ path: 'hero/:id', component: HeroDetailComponent }
+```
+
+When the user clicks the back button, the `HeroDetailComponent` constructs another *link parameters array* which it uses to navigate back to the `HeroListComponent`.
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (gotoHeroes) )
+
+```typescript
+gotoHeroes() {
+  this.router.navigate(['/heroes']);
+}
+```
+
+
+
+This array lacks a route parameter because previously you didn't need to send information to the `HeroListComponent`.
+
+Now, send the `id` of the current hero with the navigation request so that the `HeroListComponent` can highlight that hero in its list.
+
+Send the `id` with an object that contains an optional `id` parameter. For demonstration purposes, there's an extra junk parameter (`foo`) in the object that the `HeroListComponent` should ignore. Here's the revised navigation statement:
+
+( src/app/heroes/hero-detail/hero-detail.component.ts (go to heroes) )
+
+```typescript
+gotoHeroes(hero: Hero) {
+  const heroId = hero ? hero.id : null;
+  // Pass along the hero id if available
+  // so that the HeroList component can select that hero.
+  // Include a junk 'foo' property for fun.
+  this.router.navigate(['/heroes', { id: heroId, foo: 'foo' }]);
+}
+```
+
+
+
+The application still works. Clicking "back" returns to the hero list view.
+
+Look at the browser address bar.
+
+It should look something like this, depending on where you run it:
+
+```http
+localhost:4200/heroes;id=15;foo=foo
+```
+
+The `id` value appears in the URL as (`;id=15;foo=foo`), not in the URL path. The path for the "Heroes" route doesn't have an `:id` token.
+
+The optional route parameters are not separated by "?" and "&" as they would be in the URL query string. They are separated by semicolons ";". This is matrix URL notation.
+
+
+
+**Matrix URL notation is an idea first introduced in a [1996 proposal](https://www.w3.org/DesignIssues/MatrixURIs.html) by the founder of the web, Tim Berners-Lee.**
+
+**Although matrix notation never made it into the HTML standard, it is legal and it became popular among browser routing systems as a way to isolate parameters belonging to parent and child routes. As such, the Router provides support for the matrix notation across browsers.**
+
+
+
+
+
+##### Route parameters in the `ActivatedRoute` service
+
+In its current state of development, the list of heroes is unchanged. No hero row is highlighted.
+
+The `HeroListComponent` needs code that expects parameters.
+
+Previously, when navigating from the `HeroListComponent` to the `HeroDetailComponent`, you subscribed to the route parameter map `Observable` and made it available to the `HeroDetailComponent` in the `ActivatedRoute` service. You injected that service in the constructor of the `HeroDetailComponent`.
+
+This time you'll be navigating in the opposite direction, from the `HeroDetailComponent` to the `HeroListComponent`.
+
+
+
+First, extend the router import statement to include the `ActivatedRoute` service symbol:
+
+( src/app/heroes/hero-list/hero-list.component.ts (import) )
+
+```typescript
+import { ActivatedRoute } from '@angular/router';
+```
+
+
+
+Import the `switchMap` operator to perform an operation on the `Observable` of route parameter map.
+
+( src/app/heroes/hero-list/hero-list.component.ts (rxjs imports) )
+
+```typescript
+import { Observable } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+```
+
+
+
+Inject the `ActivatedRoute` in the `HeroListComponent` constructor.
+
+( src/app/heroes/hero-list/hero-list.component.ts (constructor and ngOnInit) )
+
+```typescript
+export class HeroListComponent implements OnInit {
+  heroes$!: Observable<Hero[]>;
+  selectedId = 0;
+
+  constructor(
+    private service: HeroService,
+    private route: ActivatedRoute
+  ) {}
+
+  ngOnInit() {
+    this.heroes$ = this.route.paramMap.pipe(
+      switchMap(params => {
+        this.selectedId = parseInt(params.get('id')!, 10);
+        return this.service.getHeroes();
+      })
+    );
+  }
+}
+```
+
+
+
+The `ActivatedRoute.paramMap` property is an `Observable` map of route parameters. The `paramMap` emits a new map of values that includes `id` when the user navigates to the component. In `ngOnInit()` you subscribe to those values, set the `selectedId`, and get the heroes.
+
+Update the template with a [class binding](https://angular.io/guide/class-binding). The binding adds the `selected` CSS class when the comparison returns `true` and removes it when `false`. Look for it within the repeated `<li>` tag as shown here:
+
+(src/app/heroes/hero-list/hero-list.component.html)
+
+```html
+<h2>Heroes</h2>
+<ul class="heroes">
+  <li *ngFor="let hero of heroes$ | async" [class.selected]="hero.id === selectedId">
+    <a [routerLink]="['/hero', hero.id]">
+      <span class="badge">{{ hero.id }}</span>{{ hero.name }}
+    </a>
+  </li>
+</ul>
+
+<button type="button" routerLink="/sidekicks">Go to sidekicks</button>
+```
+
+Add some styles to apply when the hero is selected.
+
+(src/app/heroes/hero-list/hero-list.component.css)
+
+```css
+.heroes .selected a {
+  background-color: #d6e6f7;
+}
+
+.heroes .selected a:hover {
+  background-color: #bdd7f5;
+}
+```
+
+
+
+When the user navigates from the heroes list to the "Magneta" hero and back, "Magneta" appears selected:
+
+![](./img/selected-hero.png) 
+
+The optional `foo` route parameter is harmless and the router continues to ignore it.
+
+
+
+
+
+##### Adding routable animations
+
+This section shows you how to add some [animations](https://angular.io/guide/animations) to the `HeroDetailComponent`.
+
+First, import the `BrowserAnimationsModule` and add it to the `imports` array:
+
+( src/app/app.module.ts (animations-module) )
+
+```typescript
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+
+@NgModule({
+  imports: [
+    BrowserAnimationsModule,
+  ],
+})
+```
+
+Next, add a `data` object to the routes for `HeroListComponent` and `HeroDetailComponent`. Transitions are based on `states` and you use the `animation` data from the route to provide a named animation [`state`](https://angular.io/api/animations/state) for the transitions.
+
+( src/app/heroes/heroes-routing.module.ts (animation data) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { HeroDetailComponent } from './hero-detail/hero-detail.component';
+
+const heroesRoutes: Routes = [
+  { path: 'heroes',  component: HeroListComponent, data: { animation: 'heroes' } },
+  { path: 'hero/:id', component: HeroDetailComponent, data: { animation: 'hero' } }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(heroesRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class HeroesRoutingModule { }
+```
+
+
+
+Create an `animations.ts` file in the root `src/app/` folder. The contents look like this:
+
+( src/app/animations.ts (excerpt) )
+
+```typescript
+import {
+  trigger, animateChild, group,
+  transition, animate, style, query
+} from '@angular/animations';
+
+
+// Routable animations
+export const slideInAnimation =
+  trigger('routeAnimation', [
+    transition('heroes <=> hero', [
+      style({ position: 'relative' }),
+      query(':enter, :leave', [
+        style({
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%'
+        })
+      ]),
+      query(':enter', [
+        style({ left: '-100%'})
+      ]),
+      query(':leave', animateChild()),
+      group([
+        query(':leave', [
+          animate('300ms ease-out', style({ left: '100%'}))
+        ]),
+        query(':enter', [
+          animate('300ms ease-out', style({ left: '0%'}))
+        ])
+      ]),
+      query(':enter', animateChild()),
+    ])
+  ]);
+```
+
+This file does the following:
+
+- Imports the animation symbols that build the animation triggers, control state, and manage transitions between states
+- Exports a constant named `slideInAnimation` set to an animation trigger named `routeAnimation`
+- Defines one transition when switching back and forth from the `heroes` and `hero` routes to ease the component in from the left of the screen as it enters the application view (`:enter`), the other to animate the component to the right as it leaves the application view (`:leave`)
+
+Back in the `AppComponent`, import the `RouterOutlet` token from the `@angular/router` package and the `slideInAnimation` from `'./animations.ts`.
+
+
+
+Add an `animations` array to the `@Component` metadata that contains the `slideInAnimation`.
+
+( src/app/app.component.ts (animations) )
+
+```typescript
+import { ChildrenOutletContexts } from '@angular/router';
+import { slideInAnimation } from './animations';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: 'app.component.html',
+  styleUrls: ['app.component.css'],
+  animations: [ slideInAnimation ]
+})
+```
+
+To use the routable animations, wrap the `RouterOutlet` inside an element, use the `@routeAnimation` trigger, and bind it to the element.
+
+For the `@routeAnimation` transitions to key off states, provide it with the `data` from the `ActivatedRoute`. The `RouterOutlet` is exposed as an `outlet` template variable, so you bind a reference to the router outlet. This example uses a variable of `routerOutlet`.
+
+
+
+( src/app/app.component.html (router outlet) )
+
+```html
+<h1>Angular Router</h1>
+<nav>
+  <a routerLink="/crisis-center" routerLinkActive="active" ariaCurrentWhenActive="page">Crisis Center</a>
+  <a routerLink="/heroes" routerLinkActive="active" ariaCurrentWhenActive="page">Heroes</a>
+</nav>
+<div [@routeAnimation]="getAnimationData()">
+  <router-outlet></router-outlet>
+</div>
+```
+
+The `@routeAnimation` property is bound to the `getAnimationData()` which returns the animation property from the `data` provided by the primary route. The `animation` property matches the `transition` names you used in the `slideInAnimation` defined in `animations.ts`.
+
+( src/app/app.component.ts (router outlet) )
+
+```typescript
+export class AppComponent {
+  constructor(private contexts: ChildrenOutletContexts) {}
+
+  getAnimationData() {
+      return this.contexts.getContext('primary')?.route?.snapshot?.data?.['animation'];
+  }
+}
+```
+
+When switching between the two routes, the `HeroDetailComponent` and `HeroListComponent` now ease in from the left when routed to, and slide to the right when navigating away.
+
+
+
+##### Milestone 3 wrap up
+
+This section covered the following:
+
+- Organizing the application into feature areas
+- Navigating imperatively from one component to another
+- Passing information along in route parameters and subscribe to them in the component
+- Importing the feature area NgModule into the `AppModule`
+- Applying routable animations based on the page
+
+After these changes, the folder structure is as follows:
+
+![](./img/wrap-up3.png) 
+
+
+
+#### Milestone 4: Crisis center feature
+
+This section shows you how to add child routes and use relative routing in your app.
+
+To add more features to the application's current crisis center, take similar steps as for the heroes feature:
+
+- Create a `crisis-center` subfolder in the `src/app` folder
+- Copy the files and folders from `app/heroes` into the new `crisis-center` folder
+- In the new files, change every mention of "hero" to "crisis", and "heroes" to "crises"
+- Rename the NgModule files to `crisis-center.module.ts` and `crisis-center-routing.module.ts`
+
+
+
+Use mock crises instead of mock heroes:
+
+(src/app/crisis-center/mock-crises.ts)
+
+```typescript
+import { Crisis } from './crisis';
+
+export const CRISES: Crisis[] = [
+  { id: 1, name: 'Dragon Burning Cities' },
+  { id: 2, name: 'Sky Rains Great White Sharks' },
+  { id: 3, name: 'Giant Asteroid Heading For Earth' },
+  { id: 4, name: 'Procrastinators Meeting Delayed Again' },
+];
+```
+
+The resulting crisis center is a foundation for introducing a new concept —child routing. You can leave Heroes in its current state as a contrast with the Crisis Center.
+
+
+
+**In keeping with the [Separation of Concerns principle](https://blog.8thlight.com/uncle-bob/2014/05/08/SingleReponsibilityPrinciple.html), changes to the Crisis Center don't affect the `AppModule` or any other feature's component.**
+
+
+
+##### A crisis center with child routes
+
+This section shows you how to organize the crisis center to conform to the following recommended pattern for Angular applications:
+
+- Each feature area resides in its own folder
+- Each feature has its own Angular feature module
+- Each area has its own area root component
+- Each area root component has its own router outlet and child routes
+- Feature area routes rarely (if ever) cross with routes of other features
+
+If your application had many feature areas, the component trees might consist of multiple components for those features, each with branches of other, related, components.
+
+
+
+```http
+https://angular.io/guide/router-tutorial-toh#a-crisis-center-with-child-routes
+```
+
+...
 
 
 
