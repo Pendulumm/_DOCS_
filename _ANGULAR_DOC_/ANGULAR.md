@@ -4146,13 +4146,579 @@ If your application had many feature areas, the component trees might consist of
 
 
 
-```http
-https://angular.io/guide/router-tutorial-toh#a-crisis-center-with-child-routes
+##### Child routing component
+
+Generate a `CrisisCenter` component in the `crisis-center` folder:
+
+```shell
+ng generate component crisis-center/crisis-center
 ```
 
-...
+Update the component template with the following markup:
+
+(src/app/crisis-center/crisis-center/crisis-center.component.html)
+
+```html
+<h2>Crisis Center</h2>
+<router-outlet></router-outlet>
+```
+
+The `CrisisCenterComponent` has the following in common with the `AppComponent`:
+
+- It is the root of the crisis center area, just as `AppComponent` is the root of the entire application
+- It is a shell for the crisis management feature area, just as the `AppComponent` is a shell to manage the high-level workflow
+
+Like most shells, the `CrisisCenterComponent` class is minimal because it has no business logic, and its template has no links, just a title and `<router-outlet>` for the crisis center child component.
 
 
+
+##### Child route configuration
+
+As a host page for the "Crisis Center" feature, generate a `CrisisCenterHome` component in the `crisis-center` folder.
+
+```shell
+ng generate component crisis-center/crisis-center-home
+```
+
+
+
+Update the template with a welcome message to the `Crisis Center`.
+
+(src/app/crisis-center/crisis-center-home/crisis-center-home.component.html)
+
+```html
+<h3>Welcome to the Crisis Center</h3>
+```
+
+
+
+Update the `crisis-center-routing.module.ts` you renamed after copying it from `heroes-routing.module.ts` file. This time, you define child routes within the parent `crisis-center` route.
+
+( src/app/crisis-center/crisis-center-routing.module.ts (Routes) )
+
+```typescript
+const crisisCenterRoutes: Routes = [
+  {
+    path: 'crisis-center',
+    component: CrisisCenterComponent,
+    children: [
+      {
+        path: '',
+        component: CrisisListComponent,
+        children: [
+          {
+            path: ':id',
+            component: CrisisDetailComponent
+          },
+          {
+            path: '',
+            component: CrisisCenterHomeComponent
+          }
+        ]
+      }
+    ]
+  }
+];
+```
+
+
+
+Notice that the parent `crisis-center` route has a `children` property with a single route containing the `CrisisListComponent`. The `CrisisListComponent` route also has a `children` array with two routes.
+
+These two routes navigate to the crisis center child components, `CrisisCenterHomeComponent` and `CrisisDetailComponent`, respectively.
+
+There are important differences in the way the router treats child routes.
+
+The router displays the components of these routes in the `RouterOutlet` of the `CrisisCenterComponent`, not in the `RouterOutlet` of the `AppComponent` shell.
+
+The `CrisisListComponent` contains the crisis list and a `RouterOutlet` to display the `Crisis Center Home` and `Crisis Detail` route components.
+
+The `Crisis Detail` route is a child of the `Crisis List`. The router [reuses components](https://angular.io/guide/router-tutorial-toh#reuse) by default, so the `Crisis Detail` component is re-used as you select different crises. In contrast, back in the `Hero Detail` route, [the component was recreated](https://angular.io/guide/router-tutorial-toh#snapshot-the-no-observable-alternative) each time you selected a different hero from the list of heroes.
+
+At the top level, paths that begin with `/` refer to the root of the application. But child routes extend the path of the parent route. With each step down the route tree, you add a slash followed by the route path, unless the path is empty.
+
+Apply that logic to navigation within the crisis center for which the parent path is `/crisis-center`.
+
+- To navigate to the `CrisisCenterHomeComponent`, the full URL is `/crisis-center` (`/crisis-center` + `''` + `''`)
+- To navigate to the `CrisisDetailComponent` for a crisis with `id=2`, the full URL is `/crisis-center/2` (`/crisis-center` + `''` + `'/2'`)
+
+The absolute URL for the latter example, including the `localhost` origin, is as follows:
+
+```http
+localhost:4200/crisis-center/2
+```
+
+
+
+Here's the complete `crisis-center-routing.module.ts` file with its imports.
+
+( src/app/crisis-center/crisis-center-routing.module.ts (excerpt) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { CrisisCenterHomeComponent } from './crisis-center-home/crisis-center-home.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { CrisisCenterComponent } from './crisis-center/crisis-center.component';
+import { CrisisDetailComponent } from './crisis-detail/crisis-detail.component';
+
+const crisisCenterRoutes: Routes = [
+  {
+    path: 'crisis-center',
+    component: CrisisCenterComponent,
+    children: [
+      {
+        path: '',
+        component: CrisisListComponent,
+        children: [
+          {
+            path: ':id',
+            component: CrisisDetailComponent
+          },
+          {
+            path: '',
+            component: CrisisCenterHomeComponent
+          }
+        ]
+      }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(crisisCenterRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class CrisisCenterRoutingModule { }
+```
+
+
+
+##### Import crisis center module into the `AppModule` routes
+
+As with the `HeroesModule`, you must add the `CrisisCenterModule` to the `imports` array of the `AppModule` *before* the `AppRoutingModule`:
+
+(src/app/crisis-center/crisis-center.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+
+import { CrisisCenterHomeComponent } from './crisis-center-home/crisis-center-home.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { CrisisCenterComponent } from './crisis-center/crisis-center.component';
+import { CrisisDetailComponent } from './crisis-detail/crisis-detail.component';
+
+import { CrisisCenterRoutingModule } from './crisis-center-routing.module';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    FormsModule,
+    CrisisCenterRoutingModule
+  ],
+  declarations: [
+    CrisisCenterComponent,
+    CrisisListComponent,
+    CrisisCenterHomeComponent,
+    CrisisDetailComponent
+  ]
+})
+export class CrisisCenterModule {}
+```
+
+
+
+( src/app/app.module.ts (import CrisisCenterModule) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+import { AppComponent } from './app.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+import { ComposeMessageComponent } from './compose-message/compose-message.component';
+
+import { AppRoutingModule } from './app-routing.module';
+import { HeroesModule } from './heroes/heroes.module';
+import { CrisisCenterModule } from './crisis-center/crisis-center.module';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    FormsModule,
+    HeroesModule,
+    CrisisCenterModule,
+    AppRoutingModule
+  ],
+  declarations: [
+    AppComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
+```
+
+
+
+**The import order of the modules is important because the order of the routes defined in the modules affects route matching. If the `AppModule` were imported first, its wildcard route (`path: '**'`) would take precedence over the routes defined in `CrisisCenterModule`. For more information, see the section on [route order](https://angular.io/guide/router#route-order).**
+
+
+
+Remove the initial crisis center route from the `app-routing.module.ts` because now the `HeroesModule` and the `CrisisCenter` modules provide the feature routes.
+
+The `app-routing.module.ts` file retains the top-level application routes such as the default and wildcard routes.
+
+( src/app/app-routing.module.ts (v3) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+const appRoutes: Routes = [
+  { path: '',   redirectTo: '/heroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forRoot(
+      appRoutes,
+      { enableTracing: true } // <-- debugging purposes only
+    )
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AppRoutingModule {}
+```
+
+
+
+##### Relative navigation
+
+While building out the crisis center feature, you navigated to the crisis detail route using an absolute path that begins with a slash.
+
+The router matches such absolute paths to routes starting from the top of the route configuration.
+
+You could continue to use absolute paths like this to navigate inside the Crisis Center feature, but that pins the links to the parent routing structure. If you changed the parent `/crisis-center` path, you would have to change the link parameters array.
+
+You can free the links from this dependency by defining paths that are relative to the current URL segment. Navigation within the feature area remains intact even if you change the parent route path to the feature.
+
+
+
+The router supports directory-like syntax in a *link parameters list* to help guide route name lookup:
+
+| DIRECTORY-LIKE SYNTAX   | DETAILS                         |
+| :---------------------- | :------------------------------ |
+| `./` `no leading slash` | Relative to the current level.  |
+| `../`                   | Up one level in the route path. |
+
+You can combine relative navigation syntax with an ancestor path. If you must navigate to a sibling route, you could use the `../<sibling>` convention to go up one level, then over and down the sibling route path.
+
+
+
+To navigate a relative path with the `Router.navigate` method, you must supply the `ActivatedRoute` to give the router knowledge of where you are in the current route tree.
+
+After the *link parameters array*, add an object with a `relativeTo` property set to the `ActivatedRoute`. The router then calculates the target URL based on the active route's location.
+
+**Always specify the complete absolute path when calling router's `navigateByUrl()` method.**
+
+
+
+##### Navigate to crisis list with a relative URL
+
+You've already injected the `ActivatedRoute` that you need to compose the relative navigation path.
+
+When using a `RouterLink` to navigate instead of the `Router` service, you'd use the same link parameters array, but you wouldn't provide the object with the `relativeTo` property. The `ActivatedRoute` is implicit in a `RouterLink` directive.
+
+
+
+Update the `gotoCrises()` method of the `CrisisDetailComponent` to navigate back to the Crisis Center list using relative path navigation.
+
+( src/app/crisis-center/crisis-detail/crisis-detail.component.ts (relative navigation) )
+
+```typescript
+// Relative navigation back to the crises
+this.router.navigate(['../', { id: crisisId, foo: 'foo' }], { relativeTo: this.route });
+```
+
+Notice that the path goes up a level using the `../` syntax. If the current crisis `id` is `3`, the resulting path back to the crisis list is `/crisis-center;id=3;foo=foo`.
+
+
+
+##### Displaying multiple routes in named outlets
+
+You decide to give users a way to contact the crisis center. When a user clicks a "Contact" button, you want to display a message in a popup view.
+
+The popup should stay open, even when switching between pages in the application, until the user closes it by sending the message or canceling. Clearly you can't put the popup in the same outlet as the other pages.
+
+Until now, you've defined a single outlet and you've nested child routes under that outlet to group routes together. The router only supports **one primary unnamed outlet** per template.
+
+A template can also have any number of named outlets. Each named outlet has its own set of routes with their own components. Multiple outlets can display different content, determined by different routes, all at the same time.
+
+
+
+Add an outlet named "popup" in the `AppComponent`, directly following the unnamed outlet.
+
+( src/app/app.component.html (outlets) )
+
+```html
+<div [@routeAnimation]="getAnimationData()">
+  <router-outlet></router-outlet>
+</div>
+<router-outlet name="popup"></router-outlet>
+```
+
+That's where a popup goes, once you learn how to route a popup component to it.
+
+
+
+###### Secondary routes
+
+Named outlets are the targets of *secondary routes*.
+
+Secondary routes look like primary routes and you configure them the same way. They differ in a few key respects.
+
+- They are independent of each other
+- They work in combination with other routes
+- They are displayed in named outlets
+
+Generate a new component to compose the message.
+
+```shell
+ng generate component compose-message
+```
+
+It displays a short form with a header, an input box for the message, and two buttons, "Send" and "Cancel".
+
+![](./img/contact-form.png) 
+
+
+
+Here's the component, its template, and styles:
+
+(src/app/compose-message/compose-message.component.html)
+
+```html
+<h3>Contact Crisis Center</h3>
+<div *ngIf="details">
+  {{ details }}
+</div>
+<div>
+  <div>
+    <label for="message">Enter your message: </label>
+  </div>
+  <div>
+    <textarea id="message" [(ngModel)]="message" rows="10" cols="35" [disabled]="sending"></textarea>
+  </div>
+</div>
+<p *ngIf="!sending">
+  <button type="button" (click)="send()">Send</button>
+  <button type="button" (click)="cancel()">Cancel</button>
+</p>
+```
+
+
+
+(src/app/compose-message/compose-message.component.ts)
+
+```typescript
+import { Component } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+
+@Component({
+  selector: 'app-compose-message',
+  templateUrl: './compose-message.component.html',
+  styleUrls: ['./compose-message.component.css']
+})
+export class ComposeMessageComponent {
+  details = '';
+  message = '';
+  sending = false;
+
+  constructor(private router: Router, private route: ActivatedRoute) {}
+
+  send() {
+    this.sending = true;
+    this.details = 'Sending Message...';
+
+    setTimeout(() => {
+      this.sending = false;
+      this.closePopup();
+    }, 1000);
+  }
+
+  cancel() {
+    this.closePopup();
+  }
+
+  closePopup() {
+    // Providing a `null` value to the named outlet
+    // clears the contents of the named outlet
+    this.router.navigate([{outlets: {popup: null}}], {relativeTo: this.route.parent});
+  }
+}
+```
+
+
+
+(src/app/compose-message/compose-message.component.css)
+
+```css
+textarea {
+  width: 100%;
+  margin-top: 1rem;
+  font-size: 1.2rem;
+  box-sizing: border-box;
+}
+```
+
+
+
+It looks similar to any other component in this guide, but there are two key differences.
+
+
+
+**NOTE:**
+**The `send()` method simulates latency by waiting a second before "sending" the message and closing the popup.**
+
+
+
+The `closePopup()` method closes the popup view by navigating to the popup outlet with a `null` which the section on [clearing secondary routes](https://angular.io/guide/router-tutorial-toh#clear-secondary-routes) covers.
+
+
+
+###### Add a secondary route
+
+Open the `AppRoutingModule` and add a new `compose` route to the `appRoutes`.
+
+( src/app/app-routing.module.ts (compose route) )
+
+```typescript
+{
+  path: 'compose',
+  component: ComposeMessageComponent,
+  outlet: 'popup'
+},
+```
+
+In addition to the `path` and `component` properties, there's a new property called `outlet`, which is set to `'popup'`. This route now targets the popup outlet and the `ComposeMessageComponent` will display there.
+
+
+
+To give users a way to open the popup, add a "Contact" link to the `AppComponent` template.
+
+( src/app/app.component.html (contact-link) )
+
+```html
+<a [routerLink]="[{ outlets: { popup: ['compose'] } }]">Contact</a>
+```
+
+
+
+Although the `compose` route is configured to the "popup" outlet, that's not sufficient for connecting the route to a `RouterLink` directive. You have to specify the named outlet in a *link parameters array* and bind it to the `RouterLink` with a property binding.
+
+The *link parameters array* contains an object with **a single `outlets` property** whose value is another object keyed by one (or more) outlet names. In this case there is only the "popup" outlet property and its value is **another *link parameters array*** that specifies the `compose` route.
+
+In other words, when the user clicks this link, the router displays the component associated with the `compose` route in the `popup` outlet.
+
+
+
+**This `outlets` object within an outer object was unnecessary when there was only one route and one unnamed outlet.**
+
+**The router assumed that your route specification targeted the unnamed primary outlet and created these objects for you.**
+
+**Routing to a named outlet revealed a router feature: you can target multiple outlets with multiple routes in the same `RouterLink` directive.**
+
+
+
+###### Secondary route navigation: merging routes during navigation
+
+Navigate to the *Crisis Center* and click "Contact". you should see something like the following URL in the browser address bar.
+
+```http
+http://…/crisis-center(popup:compose)
+```
+
+The relevant part of the URL follows the `...`:
+
+- The `crisis-center` is the primary navigation
+- Parentheses surround the secondary route
+- The secondary route consists of an **outlet name** (`popup`), a `colon` separator, and the **secondary route path** (`compose`)
+
+
+
+Click the *Heroes* link and look at the URL again.
+
+```http
+http://…/heroes(popup:compose)
+```
+
+The primary navigation part changed; the secondary route is the same.
+
+The router is keeping track of two separate branches in a navigation tree and generating a representation of that tree in the URL.
+
+You can add many more outlets and routes, at the top level and in nested levels, creating a navigation tree with many branches and the router will generate the URLs to go with it.
+
+You can tell the router to navigate an entire tree at once by filling out the `outlets` object and then pass that object inside a *link parameters array* to the `router.navigate` method.
+
+
+
+###### Clearing secondary routes
+
+Like regular outlets, secondary outlets persists until you navigate away to a new component.
+
+Each secondary outlet has its own navigation, independent of the navigation driving the primary outlet. Changing a current route that displays in the primary outlet has no effect on the popup outlet. That's why the popup stays visible as you navigate among the crises and heroes.
+
+
+
+The `closePopup()` method again:
+
+( src/app/compose-message/compose-message.component.ts (closePopup) )
+
+```typescript
+closePopup() {
+  // Providing a `null` value to the named outlet
+  // clears the contents of the named outlet
+  this.router.navigate([{outlets: {popup: null}}], {relativeTo: this.route.parent});
+}
+```
+
+Clicking the "send" or "cancel" buttons clears the popup view. The `closePopup()` function navigates imperatively with the `Router.navigate()` method, passing in a [link parameters array](https://angular.io/guide/router-tutorial-toh#link-parameters-array).
+
+Like the array bound to the *Contact* `RouterLink` in the `AppComponent`, this one includes an object with an `outlets` property. The `outlets` property value is another object with outlet names for keys. The only named outlet is `'popup'`.
+
+This time, the value of `'popup'` is `null`. That's not a route, but it is a legitimate value. Setting the popup `RouterOutlet` to `null` clears the outlet and removes the secondary popup route from the current URL.
+
+
+
+**Note:** **All commands in the array passed to `Router.navigate()` target a *specific segment* in the `UrlTree`. We specify the parent of the `ActivatedRoute` as the `relativeTo` option because we want to remove `'popup'` from the segment which holds its reference. It's important to always be aware of which segments the commands will be applied to.**
+
+When `relativeTo` is not provided to the `Router.navigate()` method, the commands are processed starting at the root. We could omit the `relativeTo` option in this particular example because the `'popup'` outlet appears at the root level of the configuration.
+
+If you want to close an outlet which appears at any segment depth, you could accomplish this by creating a `UrlTree` from the current URL, recursively clearing segment `children` matching the outlet name, and finally calling `Router.navigateByUrl()` with the `root` segment of the current `UrlTree`.
+
+
+
+
+
+#### Milestone 5: Route guards
+
+```
+https://angular.io/guide/router-tutorial-toh#milestone-5-route-guards
+```
 
 
 
