@@ -4716,9 +4716,559 @@ If you want to close an outlet which appears at any segment depth, you could acc
 
 #### Milestone 5: Route guards
 
+At the moment, any user can navigate anywhere in the application any time, but sometimes you need to control access to different parts of your application for various reasons, some of which might include the following:
+
+- Perhaps the user is not authorized to navigate to the target component
+- Maybe the user must login (authenticate) first
+- Maybe you should fetch some data before you display the target component
+- You might want to save pending changes before leaving a component
+- You might ask the user if it's okay to discard pending changes rather than save them
+
+You add guards to the route configuration to handle these scenarios.
+
+A guard's return value controls the router's behavior:
+
+| GUARD RETURN VALUE | DETAILS                                                      |
+| :----------------- | :----------------------------------------------------------- |
+| `true`             | The navigation process continues                             |
+| `false`            | The navigation process stops and the user stays put          |
+| `UrlTree`          | The current navigation cancels and a new navigation is initiated to the `UrlTree` returned |
+
+
+
+**Note: The guard can also tell the router to navigate elsewhere, effectively canceling the current navigation. When doing so inside a guard, the guard should return `UrlTree`.**
+
+
+
+The guard might return its boolean answer synchronously. But in many cases, the guard can't produce an answer synchronously. The guard could ask the user a question, save changes to the server, or fetch fresh data. These are all asynchronous operations.
+
+Accordingly, a routing guard can return an `Observable<boolean>` or a `Promise<boolean>` and the router will wait for the observable or the promise to resolve to `true` or `false`.
+
+**NOTE**:
+The observable provided to the `Router` automatically completes after it retrieves the first value.
+
+
+
+The router supports multiple guard methods:
+
+| GUARD INTERFACES                                             | DETAILS                                                      |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| [`canActivate`](https://angular.io/api/router/CanActivateFn) | To mediate navigation *to* a route                           |
+| [`canActivateChild`](https://angular.io/api/router/CanActivateChildFn) | To mediate navigation *to* a child route                     |
+| [`canDeactivate`](https://angular.io/api/router/CanDeactivateFn) | To mediate navigation *away* from the current route          |
+| [`resolve`](https://angular.io/api/router/ResolveFn)         | To perform route data retrieval *before* route activation    |
+| [`canMatch`](https://angular.io/api/router/CanMatchFn)       | To control whether a `Route` should be used at all, even if the `path` matches the URL segment |
+
+You can have multiple guards at every level of a routing hierarchy. The router checks the `canDeactivate` guards first, from the deepest child route to the top. Then it checks the `canActivate` and `canActivateChild` guards from the top down to the deepest child route. If the feature module is loaded asynchronously, the `canMatch` guard is checked before the module is loaded.
+
+With the exception of `canMatch`, if *any* guard returns false, pending guards that have not completed are canceled, and **the entire navigation** is canceled. 
+
+If a `canMatch` guard returns `false`, the `Router` **continues processing** the rest of the `Routes` to see if a different `Route` config matches the URL. You can think of this as though the `Router` is pretending the `Route` with the `canMatch` guard did not exist.
+
+There are several examples over the next few sections.
+
+
+
+##### `canActivate`: requiring authentication
+
+Applications often restrict access to a feature area based on who the user is. You could permit access only to authenticated users or to users with a specific role. You might block or limit access until the user's account is activated.
+
+The `canActivate` guard is the tool to manage these navigation business rules.
+
+
+
+###### Add an admin feature module
+
+his section guides you through extending the crisis center with some new administrative features. Start by adding a new feature module named `AdminModule`.
+
+Generate an `admin` folder with a feature module file and a routing configuration file.
+
+```shell
+ng generate module admin --routing
 ```
-https://angular.io/guide/router-tutorial-toh#milestone-5-route-guards
+
+Next, generate the supporting components.
+
+```shell
+ng generate component admin/admin-dashboard
+ng generate component admin/admin
+ng generate component admin/manage-crises
+ng generate component admin/manage-heroes
 ```
+
+The admin feature file structure looks like this:
+
+![](./img/struct_admin.png) 
+
+
+
+
+
+
+
+The admin feature module contains the `AdminComponent` used for routing within the feature module, a dashboard route and two unfinished components to manage crises and heroes.
+
+
+
+(src/app/admin/admin/admin.component.html)
+
+```html
+<h2>Admin</h2>
+<nav>
+  <a routerLink="./" routerLinkActive="active"
+    [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Dashboard</a>
+  <a routerLink="./crises" routerLinkActive="active" ariaCurrentWhenActive="page">Manage Crises</a>
+  <a routerLink="./heroes" routerLinkActive="active" ariaCurrentWhenActive="page">Manage Heroes</a>
+</nav>
+<router-outlet></router-outlet>
+```
+
+
+
+(src/app/admin/admin-dashboard/admin-dashboard.component.html)
+
+```html
+<h3>Dashboard</h3>
+```
+
+
+
+(src/app/admin/admin.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+import { AdminComponent } from './admin/admin.component';
+import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
+import { ManageCrisesComponent } from './manage-crises/manage-crises.component';
+import { ManageHeroesComponent } from './manage-heroes/manage-heroes.component';
+
+import { AdminRoutingModule } from './admin-routing.module';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    AdminRoutingModule
+  ],
+  declarations: [
+    AdminComponent,
+    AdminDashboardComponent,
+    ManageCrisesComponent,
+    ManageHeroesComponent
+  ]
+})
+export class AdminModule {}
+```
+
+
+
+(src/app/admin/manage-crises/manage-crises.component.html)
+
+```html
+<p>Manage your crises here</p>
+```
+
+(src/app/admin/manage-heroes/manage-heroes.component.html)
+
+```html
+<p>Manage your heroes here</p>
+```
+
+
+
+**Although the admin dashboard `RouterLink` only contains a relative slash without an additional URL segment, it is a match to any route within the admin feature area. You only want the `Dashboard` link to be active when the user visits that route. Adding an additional binding to the `Dashboard` routerLink,`[routerLinkActiveOptions]="{ exact: true }"`, marks the `./` link as active when the user navigates to the `/admin` URL and not when navigating to <u>any of the child routes</u>.**
+
+
+
+###### Component-less route: grouping routes without a component
+
+The initial admin routing configuration:
+
+( src/app/admin/admin-routing.module.ts (admin routing) )
+
+```typescript
+const adminRoutes: Routes = [
+  {
+    path: 'admin',
+    component: AdminComponent,
+    children: [
+      {
+        path: '',
+        children: [
+          { path: 'crises', component: ManageCrisesComponent },
+          { path: 'heroes', component: ManageHeroesComponent },
+          { path: '', component: AdminDashboardComponent }
+        ]
+      }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(adminRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AdminRoutingModule {}
+```
+
+The child route under the `AdminComponent` has a `path` and a `children` property but it's not using a `component`. This defines a *component-less* route.
+
+To group the `Crisis Center` management routes under the `admin` path a component is unnecessary. Additionally, a *component-less* route makes it easier to [guard child routes](https://angular.io/guide/router-tutorial-toh#can-activate-child-guard).
+
+
+
+Next, import the `AdminModule` into `app.module.ts` and add it to the `imports` array to register the admin routes.
+
+( src/app/app.module.ts (admin module) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+import { AppComponent } from './app.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+import { ComposeMessageComponent } from './compose-message/compose-message.component';
+
+import { AppRoutingModule } from './app-routing.module';
+import { HeroesModule } from './heroes/heroes.module';
+import { CrisisCenterModule } from './crisis-center/crisis-center.module';
+
+import { AdminModule } from './admin/admin.module';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    FormsModule,
+    HeroesModule,
+    CrisisCenterModule,
+    AdminModule,
+    AppRoutingModule
+  ],
+  declarations: [
+    AppComponent,
+    ComposeMessageComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
+```
+
+
+
+Add an "Admin" link to the `AppComponent` shell so that users can get to this feature.
+
+( src/app/app.component.html (template) )
+
+```html
+<h1 class="title">Angular Router</h1>
+<nav>
+  <a routerLink="/crisis-center" routerLinkActive="active" ariaCurrentWhenActive="page">Crisis Center</a>
+  <a routerLink="/heroes" routerLinkActive="active" ariaCurrentWhenActive="page">Heroes</a>
+  <a routerLink="/admin" routerLinkActive="active" ariaCurrentWhenActive="page">Admin</a>
+  <a [routerLink]="[{ outlets: { popup: ['compose'] } }]">Contact</a>
+</nav>
+<div [@routeAnimation]="getAnimationData()">
+  <router-outlet></router-outlet>
+</div>
+<router-outlet name="popup"></router-outlet>
+```
+
+
+
+###### Guard the admin feature
+
+Currently, every route within the Crisis Center is open to everyone. The new admin feature should be accessible only to authenticated users.
+
+Write a `canActivate()` guard method to redirect anonymous users to the login page when they try to enter the admin area.
+
+Create a new file named `auth.guard.ts` in the `auth` folder. The `auth.guard.ts` file will contain the `authGuard` function.
+
+```shell
+ng generate guard auth/auth
+```
+
+To demonstrate the fundamentals, this example only logs to the console, returns `true` immediately, and lets navigation proceed:
+
+( src/app/auth/auth.guard.ts (excerpt) )
+
+```typescript
+export const authGuard = () => {
+  console.log('authGuard#canActivate called');
+  return true;
+};
+```
+
+
+
+Next, open `admin-routing.module.ts`, import the `authGuard` function, and update the admin route with a `canActivate` guard property that references it:
+
+( src/app/admin/admin-routing.module.ts (guarded admin route) )
+
+```typescript
+import {authGuard} from '../auth/auth.guard';
+
+import {AdminDashboardComponent} from './admin-dashboard/admin-dashboard.component';
+import {AdminComponent} from './admin/admin.component';
+import {ManageCrisesComponent} from './manage-crises/manage-crises.component';
+import {ManageHeroesComponent} from './manage-heroes/manage-heroes.component';
+
+const adminRoutes: Routes = [{
+  path: 'admin',
+  component: AdminComponent,
+  canActivate: [authGuard],
+
+  children: [{
+    path: '',
+    children: [
+      {path: 'crises', component: ManageCrisesComponent},
+      {path: 'heroes', component: ManageHeroesComponent},
+      {path: '', component: AdminDashboardComponent}
+    ],
+  }]
+}];
+
+@NgModule({imports: [RouterModule.forChild(adminRoutes)], exports: [RouterModule]})
+export class AdminRoutingModule {
+}
+```
+
+The admin feature is now protected by the guard, but the guard requires more customization to work fully.
+
+
+
+###### Authenticate with `authGuard`
+
+Make the `authGuard` mimic authentication.
+
+The `authGuard` should call an application service that can log in a user and retain information about the current user. Generate a new `AuthService` in the `auth` folder:
+
+```shell
+ng generate service auth/auth
+```
+
+Update the `AuthService` to log in the user:
+
+( src/app/auth/auth.service.ts (excerpt) )
+
+```typescript
+import { Injectable } from '@angular/core';
+
+import { Observable, of } from 'rxjs';
+import { tap, delay } from 'rxjs/operators';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class AuthService {
+  isLoggedIn = false;
+
+  // store the URL so we can redirect after logging in
+  redirectUrl: string | null = null;
+
+  login(): Observable<boolean> {
+    return of(true).pipe(
+      delay(1000),
+      tap(() => this.isLoggedIn = true)
+    );
+  }
+
+  logout(): void {
+    this.isLoggedIn = false;
+  }
+}
+```
+
+Although it doesn't actually log in, it has an `isLoggedIn` flag to tell you whether the user is authenticated. Its `login()` method simulates an API call to an external service by returning an observable that resolves successfully after a short pause. The `redirectUrl` property stores the URL that the user wanted to access so you can navigate to it after authentication.
+
+
+
+**To keep things minimal, this example redirects unauthenticated users to `/admin`.**
+
+
+
+Revise the `authGuard` to call the `AuthService`.
+
+( src/app/auth/auth.guard.ts (v2) )
+
+```typescript
+import {inject} from '@angular/core';
+import { Router } from '@angular/router';
+
+import {AuthService} from './auth.service';
+
+export const authGuard = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (authService.isLoggedIn) {
+    return true;
+  }
+
+  // Redirect to the login page
+  return router.parseUrl('/login');
+};
+```
+
+This guard returns a synchronous boolean result or a `UrlTree`. If the user is logged in, it returns `true` and the navigation continues. Otherwise, it redirects to a login page; a page you haven't created yet. Returning a `UrlTree` tells the `Router` to cancel the current navigation and schedule a new one to redirect the user.
+
+
+
+###### Add the `LoginComponent`
+
+You need a `LoginComponent` for the user to log in to the application. After logging in, you'll redirect to the stored URL if available, or use the default URL. There is nothing new about this component or the way you use it in the router configuration.
+
+```shell
+ng generate component auth/login
+```
+
+
+
+Register a `/login` route in the `auth/auth-routing.module.ts` file. In `app.module.ts`, import and add `AuthModule` to the `AppModule` imports array.
+
+(src/app/app.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+
+import { AppComponent } from './app.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+import { ComposeMessageComponent } from './compose-message/compose-message.component';
+
+import { AppRoutingModule } from './app-routing.module';
+import { HeroesModule } from './heroes/heroes.module';
+import { AuthModule } from './auth/auth.module';
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    BrowserAnimationsModule,
+    FormsModule,
+    HeroesModule,
+    AuthModule,
+    AppRoutingModule,
+  ],
+  declarations: [
+    AppComponent,
+    ComposeMessageComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule {
+}
+```
+
+
+
+(src/app/auth/login/login.component.html)
+
+```typescript
+<h2>Login</h2>
+<p>{{message}}</p>
+<p>
+  <button type="button" (click)="login()"  *ngIf="!authService.isLoggedIn">Login</button>
+  <button type="button" (click)="logout()" *ngIf="authService.isLoggedIn">Logout</button>
+</p>
+```
+
+
+
+(src/app/auth/login/login.component.ts)
+
+```typescript
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthService } from '../auth.service';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.css']
+})
+export class LoginComponent {
+  message: string;
+
+  constructor(public authService: AuthService, public router: Router) {
+    this.message = this.getMessage();
+  }
+
+  getMessage() {
+    return 'Logged ' + (this.authService.isLoggedIn ? 'in' : 'out');
+  }
+
+  login() {
+    this.message = 'Trying to log in ...';
+
+    this.authService.login().subscribe(() => {
+      this.message = this.getMessage();
+      if (this.authService.isLoggedIn) {
+        // Usually you would use the redirect URL from the auth service.
+        // However to keep the example simple, we will always redirect to `/admin`.
+        const redirectUrl = '/admin';
+
+        // Redirect the user
+        this.router.navigate([redirectUrl]);
+      }
+    });
+  }
+
+  logout() {
+    this.authService.logout();
+    this.message = this.getMessage();
+  }
+}
+```
+
+
+
+(src/app/auth/auth.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+import { LoginComponent } from './login/login.component';
+import { AuthRoutingModule } from './auth-routing.module';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    FormsModule,
+    AuthRoutingModule
+  ],
+  declarations: [
+    LoginComponent
+  ]
+})
+export class AuthModule {}
+```
+
+
+
+##### `canActivateChild`: guarding child routes
+
+
+
+```http
+https://angular.io/guide/router-tutorial-toh#canactivatechild-guarding-child-routes
+```
+
+
+
+
+
+
 
 
 
