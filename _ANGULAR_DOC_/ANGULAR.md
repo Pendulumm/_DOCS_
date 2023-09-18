@@ -5258,19 +5258,142 @@ export class AuthModule {}
 
 ##### `canActivateChild`: guarding child routes
 
+You can also protect child routes with the `canActivateChild` guard. The `canActivateChild` guard is similar to the `canActivate` guard. The key difference is that it runs before any child route is activated.
+
+You protected the admin feature module from unauthorized access. You should also protect child routes *within* the feature module.
+
+Add the same `authGuard` to the `component-less` admin route to protect all other child routes at one time instead of adding the `authGuard` to each route individually.
 
 
-```http
-https://angular.io/guide/router-tutorial-toh#canactivatechild-guarding-child-routes
+
+src/app/admin/admin-routing.module.ts (excerpt)
+
+```typescript
+const adminRoutes: Routes = [
+  {
+    path: 'admin',
+    component: AdminComponent,
+    canActivate: [authGuard],
+    children: [
+      {
+        path: '',
+        canActivateChild: [authGuard],
+        children: [
+          { path: 'crises', component: ManageCrisesComponent },
+          { path: 'heroes', component: ManageHeroesComponent },
+          { path: '', component: AdminDashboardComponent }
+        ]
+      }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(adminRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AdminRoutingModule {}
 ```
 
 
 
+##### `canDeactivate`: handling unsaved changes
+
+Back in the "Heroes" workflow, the application accepts every change to a hero immediately without validation.
+
+In the real world, you might have to accumulate the users changes, validate across fields, validate on the server, or hold changes in a pending state until the user confirms them as a group or cancels and reverts all changes.
+
+When the user navigates away, you can let the user decide what to do with unsaved changes. If the user cancels, you'll stay put and allow more changes. If the user approves, the application can save.
+
+You still might delay navigation until the save succeeds. If you let the user move to the next screen immediately and saving were to fail (perhaps the data is ruled invalid), you would lose the context of the error.
+
+You need to stop the navigation while you wait, asynchronously, for the server to return with its answer.
+
+The `canDeactivate` guard helps you decide what to do with unsaved changes and how to proceed.
 
 
 
+###### Cancel and save
+
+Users update crisis information in the `CrisisDetailComponent`. Unlike the `HeroDetailComponent`, the user changes do not update the crisis entity immediately. Instead, the application updates the entity when the user presses the Save button and discards the changes when the user presses the Cancel button.
+
+Both buttons navigate back to the crisis list after save or cancel.
 
 
+
+( src/app/crisis-center/crisis-detail/crisis-detail.component.ts (cancel and save methods) )
+
+```typescript
+cancel() {
+  this.gotoCrises();
+}
+
+save() {
+  this.crisis.name = this.editName;
+  this.gotoCrises();
+}
+```
+
+
+
+In this scenario, the user could click the heroes link, cancel, push the browser back button, or navigate away without saving.
+
+This example application asks the user to be explicit with a confirmation dialog box that waits asynchronously for the user's response.
+
+
+
+**You could wait for the user's answer with synchronous, blocking code, however, the application is more responsive —and can do other work— by waiting for the user's answer asynchronously.**
+
+
+
+Generate a `Dialog` service to handle user confirmation.
+
+```shell
+ng generate service dialog
+```
+
+
+
+Add a `confirm()` method to the `DialogService` to prompt the user to confirm their intent. The `window.confirm` is a blocking action that displays a modal dialog and waits for user interaction.
+
+
+
+(src/app/dialog.service.ts)
+
+```typescript
+import { Injectable } from '@angular/core';
+import { Observable, of } from 'rxjs';
+
+/**
+ * Async modal dialog service
+ * DialogService makes this app easier to test by faking this service.
+ * TODO: better modal implementation that doesn't use window.confirm
+ */
+@Injectable({
+  providedIn: 'root',
+})
+export class DialogService {
+  /**
+   * Ask user to confirm an action. `message` explains the action and choices.
+   * Returns observable resolving to `true`=confirm or `false`=cancel
+   */
+  confirm(message?: string): Observable<boolean> {
+    const confirmation = window.confirm(message || 'Is it OK?');
+
+    return of(confirmation);
+  }
+}
+```
+
+
+
+```http
+https://angular.io/guide/router-tutorial-toh#candeactivate-handling-unsaved-changes
+```
 
 
 
