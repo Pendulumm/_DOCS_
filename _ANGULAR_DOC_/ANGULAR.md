@@ -5389,11 +5389,957 @@ export class DialogService {
 }
 ```
 
+It returns an `Observable` that resolves when the user eventually decides what to do: either to discard changes and navigate away (`true`) or to preserve the pending changes and stay in the crisis editor (`false`).
 
+
+
+Create a guard that checks for **the presence** of a `canDeactivate()` method in a component —any component.
+
+```shell
+ng generate guard can-deactivate
+```
+
+
+
+Paste the following code into your guard.
+
+(src/app/can-deactivate.guard.ts)
+
+```typescript
+import { CanDeactivateFn } from '@angular/router';
+import { Observable } from 'rxjs';
+
+export interface CanComponentDeactivate {
+  canDeactivate?: () => Observable<boolean> | Promise<boolean> | boolean;
+}
+
+export const canDeactivateGuard: CanDeactivateFn<CanComponentDeactivate> =
+    (component: CanComponentDeactivate) => component.canDeactivate ? component.canDeactivate() : true;
+```
+
+
+
+While the guard doesn't have to know which component has a `deactivate` method, it can detect that the `CrisisDetailComponent` component has the `canDeactivate()` method and call it. The guard not knowing the details of any component's deactivation method makes the guard reusable.
+
+
+
+Alternatively, you could make a component-specific `canDeactivate` guard for the `CrisisDetailComponent`. The `canDeactivate()` method provides you with the current instance of the `component`, the current `ActivatedRoute`, and `RouterStateSnapshot` in case you needed to access some external information. This would be useful if you only wanted to use this guard for this component and needed to get the component's properties or confirm whether the router should allow navigation away from it.
+
+( src/app/can-deactivate.guard.ts (component-specific) )
+
+```typescript
+import { Observable } from 'rxjs';
+import { CanDeactivateFn,
+         ActivatedRouteSnapshot,
+         RouterStateSnapshot } from '@angular/router';
+
+import { CrisisDetailComponent } from './crisis-center/crisis-detail/crisis-detail.component';
+
+export const canDeactivateGuard: CanDeactivateFn<CrisisDetailComponent>  = (
+    component: CrisisDetailComponent,
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ): Observable<boolean> | boolean => {
+    // Get the Crisis Center ID
+    console.log(route.paramMap.get('id'));
+
+    // Get the current URL
+    console.log(state.url);
+
+    // Allow synchronous navigation (`true`) if no crisis or the crisis is unchanged
+    if (!component.crisis || component.crisis.name === component.editName) {
+      return true;
+    }
+    // Otherwise ask the user with the dialog service and return its
+    // observable which resolves to true or false when the user decides
+    return component.dialogService.confirm('Discard changes?');
+  };
+```
+
+
+
+Looking back at the `CrisisDetailComponent`, it implements the confirmation workflow for unsaved changes.
+
+( src/app/crisis-center/crisis-detail/crisis-detail.component.ts (excerpt) )
+
+```typescript
+canDeactivate(): Observable<boolean> | boolean {
+  // Allow synchronous navigation (`true`) if no crisis or the crisis is unchanged
+  if (!this.crisis || this.crisis.name === this.editName) {
+    return true;
+  }
+  // Otherwise ask the user with the dialog service and return its
+  // observable which resolves to true or false when the user decides
+  return this.dialogService.confirm('Discard changes?');
+}
+```
+
+Notice that the `canDeactivate()` method can return synchronously; it returns `true` immediately if there is no crisis or there are no pending changes. But it can also return a `Promise` or an `Observable` and the router will wait for that to resolve to truthy (navigate) or falsy (stay on the current route).
+
+
+
+Add the `Guard` to the crisis detail route in `crisis-center-routing.module.ts` using the `canDeactivate` array property.
+
+( src/app/crisis-center/crisis-center-routing.module.ts (can deactivate guard) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { CrisisCenterHomeComponent } from './crisis-center-home/crisis-center-home.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { CrisisCenterComponent } from './crisis-center/crisis-center.component';
+import { CrisisDetailComponent } from './crisis-detail/crisis-detail.component';
+
+import { canDeactivateGuard } from '../can-deactivate.guard';
+
+const crisisCenterRoutes: Routes = [
+  {
+    path: 'crisis-center',
+    component: CrisisCenterComponent,
+    children: [
+      {
+        path: '',
+        component: CrisisListComponent,
+        children: [
+          {
+            path: ':id',
+            component: CrisisDetailComponent,
+            canDeactivate: [canDeactivateGuard]
+          },
+          {
+            path: '',
+            component: CrisisCenterHomeComponent
+          }
+        ]
+      }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(crisisCenterRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class CrisisCenterRoutingModule { }
+```
+
+Now you have given the user a safeguard against unsaved changes.
+
+
+
+###### review
+
+If you want to detect whether any component in your Angular application has implemented the `CanDeactivate` guard, you would typically follow these steps:
+
+
+
+1.Define a CanDeactivateFn Interface: First, create an interface that represents the `CanDeactivate` function signature. This interface should be implemented by any component that wishes to use the `CanDeactivate` guard.
+
+```typescript
+export interface CanDeactivateFn {
+  canDeactivate: () => boolean | Observable<boolean> | Promise<boolean>;
+}
+```
+
+
+
+2.Implement the CanDeactivate Guard: Next, create a CanDeactivate guard that will use the `CanDeactivateFn` interface to check whether a component can be deactivated or not.
+
+```typescript
+import { Injectable } from '@angular/core';
+import { CanDeactivate } from '@angular/router';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class CanDeactivateGuard implements CanDeactivate<CanDeactivateFn> {
+  canDeactivate(
+    component: CanDeactivateFn
+  ): boolean | Observable<boolean> | Promise<boolean> {
+    return component.canDeactivate ? component.canDeactivate() : true;
+  }
+}
+```
+
+
+
+3.Implement CanDeactivate in Components: In the components where you want to use the `CanDeactivate` guard, you should implement the `CanDeactivateFn` interface and provide the logic in the `canDeactivate` method.
+
+```typescript
+import { Component } from '@angular/core';
+import { CanDeactivateFn } from './can-deactivate-fn.interface';
+
+@Component({
+  selector: 'app-example',
+  template: `
+    <!-- Your component template -->
+  `
+})
+export class ExampleComponent implements CanDeactivateFn {
+  canDeactivate(): boolean | Observable<boolean> | Promise<boolean> {
+    // Add your deactivation logic here
+    // For example, check if the user should be allowed to navigate away from this component
+    return true; // or return a boolean, Observable<boolean>, or Promise<boolean>
+  }
+}
+```
+
+
+
+4.Use the CanDeactivate Guard in Routes: Finally, in your Angular routing configuration, you can use the `CanDeactivate` guard to protect specific routes or components.
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { ExampleComponent } from './example.component';
+import { CanDeactivateGuard } from './can-deactivate.guard';
+
+const routes: Routes = [
+  {
+    path: 'example',
+    component: ExampleComponent,
+    canDeactivate: [CanDeactivateGuard] // Use the CanDeactivate guard for this route
+  },
+  // Other routes...
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule {}
+```
+
+With this setup, the `CanDeactivateGuard` will check whether the component implements the `CanDeactivateFn` interface and, if so, whether the `canDeactivate` method returns a boolean, an Observable<boolean>, or a Promise<boolean>. If any component along the route hierarchy implements this interface, the guard will execute the `canDeactivate` method before allowing navigation to occur.
+
+**In `CrisisDetailComponent`  situation**
+
+```typescript
+export class CrisisDetailComponent implements OnInit { 
+	canDeactivate(): Observable<boolean> | boolean { --CODE--}
+}
+```
+
+```typescript
+import { CanComponentDeactivate } from 'src/app/can-deactivate.guard';
+export class CrisisDetailComponent implements CanComponentDeactivate, OnInit {
+    canDeactivate(): Observable<boolean> | boolean { --CODE--}
+}
+```
+
+
+
+In current Angular version, you can omit `CanComponentDeactivate` interface implementation. (I don't know how it works...)
+
+
+
+##### *Resolve*: pre-fetching component data
+
+In the `Hero Detail` and `Crisis Detail`, the application waited until the route was activated to fetch the respective hero or crisis.
+
+If you were using a real world API, there might be some delay before the data to display is returned from the server. You don't want to display a blank component while waiting for the data.
+
+To improve this behavior, you can pre-fetch data from the server using a resolver so it's ready the moment the route is activated. This also lets you handle errors before routing to the component. There's no point in navigating to a crisis detail for an `id` that doesn't have a record. It'd be better to send the user back to the `Crisis List` that shows only valid crisis centers.
+
+In summary, you want to delay rendering the routed component until all necessary data has been fetched.
+
+
+
+###### Fetch data before navigating
+
+At the moment, the `CrisisDetailComponent` retrieves the selected crisis. If the crisis is not found, the router navigates back to the crisis list view.
+
+The experience might be better if all of this were handled first, before the route is activated. A `crisisDetailResolver` could retrieve a `Crisis` or navigate away, if the `Crisis` did not exist, *before* activating the route and creating the `CrisisDetailComponent`.
+
+
+
+Create a `crisis-detail-resolver.ts` file within the `Crisis Center` feature area. This file will contain the `crisisDetailResolver` function.
+
+```shell
+ng generate resolver crisis-center/crisis-detail-resolver
+```
+
+
+
+(src/app/crisis-center/crisis-detail-resolver.ts)
+
+```typescript
+export function crisisDetailResolver() {
+}
+```
+
+Move the relevant parts of the crisis retrieval logic in `CrisisDetailComponent.ngOnInit()` into the `crisisDetailResolver`. Import the `Crisis` model, `CrisisService`, and the `Router` so you can navigate elsewhere if you can't fetch the crisis.
+
+Be explicit and use the `ResolveFn` type with a type of `Crisis`.
+
+Inject the `CrisisService` and `Router`. That method could return a `Promise`, an `Observable`, or a synchronous return value.
+
+The `CrisisService.getCrisis()` method returns an observable in order to prevent the route from loading until the data is fetched.
+
+If it doesn't return a valid `Crisis`, then return an empty `Observable`, cancel the previous in-progress navigation to the `CrisisDetailComponent`, and navigate the user back to the `CrisisListComponent`. The updated resolver function looks like this:
+
+(src/app/crisis-center/crisis-detail-resolver.ts)
+
+```typescript
+import {inject} from '@angular/core';
+import {ActivatedRouteSnapshot, ResolveFn, Router} from '@angular/router';
+import {EMPTY, of} from 'rxjs';
+import {mergeMap} from 'rxjs/operators';
+
+import {Crisis} from './crisis';
+import {CrisisService} from './crisis.service';
+
+export const crisisDetailResolver: ResolveFn<Crisis> = (route: ActivatedRouteSnapshot) => {
+  const router = inject(Router);
+  const cs = inject(CrisisService);
+  const id = route.paramMap.get('id')!;
+
+  return cs.getCrisis(id).pipe(mergeMap(crisis => {
+    if (crisis) {
+      return of(crisis);
+    } else {  // id not found
+      router.navigate(['/crisis-center']);
+      return EMPTY;
+    }
+  }));
+};
+```
+
+
+
+Import this resolver in the `crisis-center-routing.module.ts` and add a `resolve` object to the `CrisisDetailComponent` route configuration.
+
+( src/app/crisis-center/crisis-center-routing.module.ts (resolver) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { CrisisCenterHomeComponent } from './crisis-center-home/crisis-center-home.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { CrisisCenterComponent } from './crisis-center/crisis-center.component';
+import { CrisisDetailComponent } from './crisis-detail/crisis-detail.component';
+
+import { canDeactivateGuard } from '../can-deactivate.guard';
+import { crisisDetailResolver } from './crisis-detail-resolver';
+
+const crisisCenterRoutes: Routes = [
+  {
+    path: 'crisis-center',
+    component: CrisisCenterComponent,
+    children: [
+      {
+        path: '',
+        component: CrisisListComponent,
+        children: [
+          {
+            path: ':id',
+            component: CrisisDetailComponent,
+            canDeactivate: [canDeactivateGuard],
+            resolve: {
+              crisis: crisisDetailResolver
+            }
+          },
+          {
+            path: '',
+            component: CrisisCenterHomeComponent
+          }
+        ]
+      }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(crisisCenterRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class CrisisCenterRoutingModule { }
+```
+
+
+
+The `CrisisDetailComponent` should no longer fetch the crisis. When you re-configured the route, you changed where the crisis is. Update the `CrisisDetailComponent` to get the crisis from the `ActivatedRoute.data.crisis` property instead;
+
+( src/app/crisis-center/crisis-detail/crisis-detail.component.ts (ngOnInit v2) )
+
+```typescript
+ngOnInit() {
+  this.route.data
+    .subscribe(data => {
+      const crisis: Crisis = data['crisis'];
+      this.editName = crisis.name;
+      this.crisis = crisis;
+    });
+}
+```
+
+
+
+Review the following three important points:
+
+1. The router's `ResolveFn` is optional.
+2. The router calls the resolver in any case where the user could navigate away so you don't have to code for each use case.
+3. Returning an empty `Observable` in at least one resolver cancels navigation.
+
+
+
+
+
+##### Query parameters and fragments
+
+In the [route parameters](https://angular.io/guide/router-tutorial-toh#optional-route-parameters) section, you only dealt with parameters specific to the route. However, you can use query parameters to get optional parameters available to all routes.
+
+[Fragments](https://en.wikipedia.org/wiki/Fragment_identifier) refer to certain elements on the page identified with an `id` attribute.
+
+Update the `authGuard` to provide a `session_id` query that remains after navigating to another route.
+
+Add an `anchor` element so you can jump to a certain point on the page.
+
+Add the `NavigationExtras` object to the `router.navigate()` method that navigates you to the `/login` route.
+
+
+
+( src/app/auth/auth.guard.ts (v3) )
+
+```typescript
+import { inject } from '@angular/core';
+import { Router, NavigationExtras } from '@angular/router';
+import { AuthService } from './auth.service';
+
+export const authGuard = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (authService.isLoggedIn) {
+    return true;
+  }
+
+  // Create a dummy session id
+  const sessionId = 123456789;
+
+  // Set our navigation extras object
+  // that contains our global query params and fragment
+  const navigationExtras: NavigationExtras = {
+    queryParams: { session_id: sessionId },
+    fragment: 'anchor'
+  };
+
+  // Redirect to the login page with extras
+  return router.createUrlTree(['/login'], navigationExtras);
+};
+```
+
+
+
+You can also preserve query parameters and fragments across navigations without having to provide them again when navigating. In the `LoginComponent`, you'll add an *object* as the second argument in the `router.navigate()` function and provide the `queryParamsHandling` and `preserveFragment` to pass along the current query parameters and fragment to the next route.
+
+( src/app/auth/login/login.component.ts (preserve) )
+
+```typescript
+// Set our navigation extras object
+// that passes on our global query params and fragment
+const navigationExtras: NavigationExtras = {
+  queryParamsHandling: 'preserve',
+  preserveFragment: true
+};
+
+// Redirect the user
+this.router.navigate([redirectUrl], navigationExtras);
+```
+
+
+
+**The `queryParamsHandling` feature also provides a `merge` option, which preserves and combines the current query parameters with any provided query parameters when navigating.**
+
+
+
+To navigate to the Admin Dashboard route after logging in, update `admin-dashboard.component.ts` to handle the query parameters and fragment.
+
+( src/app/admin/admin-dashboard/admin-dashboard.component.ts (v2) )
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+@Component({
+  selector: 'app-admin-dashboard',
+  templateUrl: './admin-dashboard.component.html',
+  styleUrls: ['./admin-dashboard.component.css']
+})
+export class AdminDashboardComponent implements OnInit {
+  sessionId!: Observable<string>;
+  token!: Observable<string>;
+
+  constructor(private route: ActivatedRoute) {}
+
+  ngOnInit() {
+    // Capture the session ID if available
+    this.sessionId = this.route
+      .queryParamMap
+      .pipe(map(params => params.get('session_id') || 'None'));
+
+    // Capture the fragment if available
+    this.token = this.route
+      .fragment
+      .pipe(map(fragment => fragment || 'None'));
+  }
+}
+```
+
+Query parameters and fragments are also available through the `ActivatedRoute` service. Like route parameters, the query parameters and fragments are provided as an `Observable`. The updated Crisis Admin component feeds the `Observable` directly into the template using the `AsyncPipe`.
+
+Now, you can click on the Admin button, which takes you to the Login page with the provided `queryParamMap` and `fragment`. After you click the login button, notice that you have been redirected to the `Admin Dashboard` page with the query parameters and fragment still intact in the address bar.
+
+You can use these persistent bits of information for things that need to be provided across pages like authentication tokens or session ids.
+
+
+
+**The `query params` and `fragment` can also be preserved using a `RouterLink` with the `queryParamsHandling` and `preserveFragment` bindings respectively.**
+
+
+
+#### Milestone 6: Asynchronous routing
+
+As you've worked through the milestones, the application has naturally gotten larger. At some point you'll reach a point where the application takes a long time to load.
+
+To remedy this issue, use asynchronous routing, which loads feature modules lazily, on request. Lazy loading has multiple benefits.
+
+- You can load feature areas only when requested by the user
+- You can speed up load time for users that only visit certain areas of the application
+- You can continue expanding lazy loaded feature areas without increasing the size of the initial load bundle
+
+You're already part of the way there. By organizing the application into modules —`AppModule`, `HeroesModule`, `AdminModule`, and `CrisisCenterModule`— you have natural candidates for lazy loading.
+
+Some modules, like `AppModule`, must be loaded from the start. But others can and should be lazy loaded. The `AdminModule`, for example, is needed by a few authorized users, so you should only load it when requested by the right people.
+
+
+
+##### Lazy Loading route configuration
+
+Change the `admin` path in the `admin-routing.module.ts` from `'admin'` to an empty string, `''`, the empty path.
+
+Use empty path routes to group routes together without adding any additional path segments to the URL. Users will still visit `/admin` and the `AdminComponent` still serves as the Routing Component containing child routes.
+
+Open the `AppRoutingModule` and add a new `admin` route to its `appRoutes` array.
+
+Give it a `loadChildren` property instead of a `children` property. The `loadChildren` property takes a function that returns a promise using the browser's built-in syntax for lazy loading code using dynamic imports `import('...')`. The path is the location of the `AdminModule` (relative to the application root). After the code is requested and loaded, the `Promise` resolves an object that contains the `NgModule`, in this case the `AdminModule`.
+
+( app-routing.module.ts (load children) )
+
+```typescript
+{
+  path: 'admin',
+  loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule),
+},
+```
+
+
+
+**NOTE**:
+**When using absolute paths, the `NgModule` file location must begin with `src/app` in order to resolve correctly. For custom [path mapping with absolute paths](https://www.typescriptlang.org/docs/handbook/module-resolution.html#path-mapping), you must configure the `baseUrl` and `paths` properties in the project `tsconfig.json`.**
+
+
+
+When the router navigates to this route, it uses the `loadChildren` string to dynamically load the `AdminModule`. Then it adds the `AdminModule` routes to its current route configuration. Finally, it loads the requested route to the destination admin component.
+
+The lazy loading and re-configuration happen just once, when the route is first requested; the module and routes are available immediately for subsequent requests.
+
+Take the final step and detach the admin feature set from the main application. The root `AppModule` must neither load nor reference the `AdminModule` or its files.
+
+In `app.module.ts`, remove the `AdminModule` import statement from the top of the file and remove the `AdminModule` from the NgModule's `imports` array.
+
+
+
+##### `canMatch`: guarding unauthorized access of feature modules
+
+You're already protecting the `AdminModule` with a `canActivate` guard that prevents unauthorized users from accessing the admin feature area. It redirects to the login page if the user is not authorized.
+
+But the router is still loading the `AdminModule` even if the user can't visit any of its components. Ideally, you'd only load the `AdminModule` if the user is logged in.
+
+A `canMatch` guard controls whether the `Router` attempts to match a `Route`. This lets you have multiple `Route` configurations that share the same `path` but are matched based on different conditions. This approach allows the `Router` to match the wildcard `Route` instead.
+
+The existing `authGuard` contains the logic to support the `canMatch` guard.
+
+Finally, add the `authGuard` to the `canMatch` array property for the `admin` route. The completed admin route looks like this:
+
+( app-routing.module.ts (lazy admin route) )
+
+```typescript
+{
+  path: 'admin',
+  loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule),
+  canMatch: [authGuard]
+},
+```
+
+
+
+##### Preloading: background loading of feature areas
+
+In addition to loading modules on-demand, you can load modules asynchronously with preloading.
+
+The `AppModule` is eagerly loaded when the application starts, meaning that it loads right away. Now the `AdminModule` loads only when the user clicks on a link, which is called lazy loading.
+
+Preloading lets you load modules in the background so that the data is ready to render when the user activates a particular route. Consider the Crisis Center. It isn't the first view that a user sees. By default, the Heroes are the first view. For the smallest initial payload and fastest launch time, you should eagerly load the `AppModule` and the `HeroesModule`.
+
+You could lazy load the Crisis Center. But you're almost certain that the user will visit the Crisis Center within minutes of launching the app. Ideally, the application would launch with just the `AppModule` and the `HeroesModule` loaded and then, almost immediately, load the `CrisisCenterModule` in the background. By the time the user navigates to the Crisis Center, its module is loaded and ready.
+
+
+
+###### How preloading works
+
+After each successful navigation, the router looks in its configuration for an unloaded module that it can preload. Whether it preloads a module, and which modules it preloads, depends upon the preload strategy.
+
+The `Router` offers two preloading strategies:
+
+| STRATEGIES    | DETAILS                                                      |
+| :------------ | :----------------------------------------------------------- |
+| No preloading | The default. Lazy loaded feature areas are still loaded on-demand. |
+| Preloading    | All lazy loaded feature areas are preloaded.                 |
+
+The router either never preloads, or preloads every lazy loaded module. The `Router` also supports [custom preloading strategies](https://angular.io/guide/router-tutorial-toh#custom-preloading) for fine control over which modules to preload and when.
+
+This section guides you through updating the `CrisisCenterModule` to load lazily by default and use the `PreloadAllModules` strategy to load all lazy loaded modules.
+
+
+
+###### Lazy load the crisis center
+
+Update the route configuration to lazy load the `CrisisCenterModule`. Take the same steps you used to configure `AdminModule` for lazy loading.
+
+1. Change the `crisis-center` path in the `CrisisCenterRoutingModule` to an empty string.
+2. Add a `crisis-center` route to the `AppRoutingModule`.
+3. Set the `loadChildren` string to load the `CrisisCenterModule`.
+4. Remove all mention of the `CrisisCenterModule` from `app.module.ts`.
+
+Here are the updated modules *before enabling preload*:
+
+(app.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+
+import { Router } from '@angular/router';
+
+import { AppComponent } from './app.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+import { ComposeMessageComponent } from './compose-message/compose-message.component';
+
+import { AppRoutingModule } from './app-routing.module';
+import { HeroesModule } from './heroes/heroes.module';
+import { AuthModule } from './auth/auth.module';
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    BrowserAnimationsModule,
+    FormsModule,
+    HeroesModule,
+    AuthModule,
+    AppRoutingModule,
+  ],
+  declarations: [
+    AppComponent,
+    ComposeMessageComponent,
+    PageNotFoundComponent
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule {
+}
+```
+
+
+
+(app-routing.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import {
+  RouterModule, Routes,
+} from '@angular/router';
+
+import { ComposeMessageComponent } from './compose-message/compose-message.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+import { authGuard } from './auth/auth.guard';
+
+const appRoutes: Routes = [
+  {
+    path: 'compose',
+    component: ComposeMessageComponent,
+    outlet: 'popup'
+  },
+  {
+    path: 'admin',
+    loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule),
+    canMatch: [authGuard]
+  },
+  {
+    path: 'crisis-center',
+    loadChildren: () => import('./crisis-center/crisis-center.module').then(m => m.CrisisCenterModule)
+  },
+  { path: '',   redirectTo: '/heroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forRoot(
+      appRoutes,
+    )
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AppRoutingModule {}
+```
+
+
+
+(crisis-center-routing.module.ts)
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { CrisisCenterHomeComponent } from './crisis-center-home/crisis-center-home.component';
+import { CrisisListComponent } from './crisis-list/crisis-list.component';
+import { CrisisCenterComponent } from './crisis-center/crisis-center.component';
+import { CrisisDetailComponent } from './crisis-detail/crisis-detail.component';
+
+import { canDeactivateGuard } from '../can-deactivate.guard';
+import { crisisDetailResolver } from './crisis-detail-resolver';
+
+const crisisCenterRoutes: Routes = [
+  {
+    path: '',
+    component: CrisisCenterComponent,
+    children: [
+      {
+        path: '',
+        component: CrisisListComponent,
+        children: [
+          {
+            path: ':id',
+            component: CrisisDetailComponent,
+            canDeactivate: [canDeactivateGuard],
+            resolve: {
+              crisis: crisisDetailResolver
+            }
+          },
+          {
+            path: '',
+            component: CrisisCenterHomeComponent
+          }
+        ]
+      }
+    ]
+  }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(crisisCenterRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class CrisisCenterRoutingModule { }
+```
+
+You could try this now and confirm that the `CrisisCenterModule` loads after you click the "Crisis Center" button.
+
+
+
+To enable preloading of all lazy loaded modules, import the `PreloadAllModules` token from the Angular router package.
+
+The second argument in the `RouterModule.forRoot()` method takes an object for additional configuration options. The `preloadingStrategy` is one of those options. Add the `PreloadAllModules` token to the `forRoot()` call:
+
+( src/app/app-routing.module.ts (preload all) )
+
+```typescript
+RouterModule.forRoot(
+  appRoutes,
+  {
+    enableTracing: true, // <-- debugging purposes only
+    preloadingStrategy: PreloadAllModules
+  }
+)
+```
+
+This configures the `Router` preloader to immediately load all lazy loaded routes (routes with a `loadChildren` property).
+
+When you visit `http://localhost:4200`, the `/heroes` route loads immediately upon launch and the router starts loading the `CrisisCenterModule` right after the `HeroesModule` loads.
+
+
+
+##### Custom Preloading Strategy
+
+Preloading every lazy loaded module works well in many situations. However, in consideration of things such as low bandwidth and user metrics, you can use a custom preloading strategy for specific feature modules.
+
+This section guides you through adding a custom strategy that only preloads routes whose `data.preload` flag is set to `true`. Recall that you can add anything to the `data` property of a route.
+
+Set the `data.preload` flag in the `crisis-center` route in the `AppRoutingModule`.
+
+( src/app/app-routing.module.ts (route data preload) )
+
+```typescript
+{
+  path: 'crisis-center',
+  loadChildren: () => import('./crisis-center/crisis-center.module').then(m => m.CrisisCenterModule),
+  data: { preload: true }
+},
+```
+
+
+
+Generate a new `SelectivePreloadingStrategy` service.
+
+```shell
+ng generate service selective-preloading-strategy
+```
+
+
+
+Replace the contents of `selective-preloading-strategy.service.ts` with the following:
+
+(src/app/selective-preloading-strategy.service.ts)
+
+```typescript
+import { Injectable } from '@angular/core';
+import { PreloadingStrategy, Route } from '@angular/router';
+import { Observable, of } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class SelectivePreloadingStrategyService implements PreloadingStrategy {
+  preloadedModules: string[] = [];
+
+  preload(route: Route, load: () => Observable<any>): Observable<any> {
+    if (route.canMatch === undefined && route.data?.['preload'] && route.path != null) {
+      // add the route path to the preloaded module array
+      this.preloadedModules.push(route.path);
+
+      // log the route path to the console
+      console.log('Preloaded: ' + route.path);
+
+      return load();
+    } else {
+      return of(null);
+    }
+  }
+}
+```
+
+`SelectivePreloadingStrategyService` implements the `PreloadingStrategy`, which has one method, `preload()`.
+
+The router calls the `preload()` method with two arguments:
+
+1. The route to consider.
+2. A loader function that can load the routed module asynchronously.
+
+An implementation of `preload` must return an `Observable`. If the route does preload, it returns the observable returned by calling the loader function. If the route does not preload, it returns an `Observable` of `null`.
+
+In this sample, the `preload()` method loads the route if the route's `data.preload` flag is truthy. We also skip loading the `Route` if there is a `canMatch` guard because the user might not have access to it.
+
+As a side effect, `SelectivePreloadingStrategyService` logs the `path` of a selected route in its public `preloadedModules` array.
+
+Shortly, you'll extend the `AdminDashboardComponent` to inject this service and display its `preloadedModules` array.
+
+But first, make a few changes to the `AppRoutingModule`.
+
+1. Import `SelectivePreloadingStrategyService` into `AppRoutingModule`.
+2. Replace the `PreloadAllModules` strategy in the call to `forRoot()` with this `SelectivePreloadingStrategyService`.
+
+Now edit the `AdminDashboardComponent` to display the log of preloaded routes.
+
+1. Import the `SelectivePreloadingStrategyService`.
+2. Inject it into the dashboard's constructor.
+3. Update the template to display the strategy service's `preloadedModules` array.
+
+
+
+Now the file is as follows:
+
+( src/app/admin/admin-dashboard/admin-dashboard.component.ts (preloaded modules) )
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+import { SelectivePreloadingStrategyService } from '../../selective-preloading-strategy.service';
+
+@Component({
+  selector: 'app-admin-dashboard',
+  templateUrl: './admin-dashboard.component.html',
+  styleUrls: ['./admin-dashboard.component.css']
+})
+export class AdminDashboardComponent implements OnInit {
+  sessionId!: Observable<string>;
+  token!: Observable<string>;
+  modules: string[] = [];
+
+  constructor(
+    private route: ActivatedRoute,
+    preloadStrategy: SelectivePreloadingStrategyService
+  ) {
+    this.modules = preloadStrategy.preloadedModules;
+  }
+
+  ngOnInit() {
+    // Capture the session ID if available
+    this.sessionId = this.route
+      .queryParamMap
+      .pipe(map(params => params.get('session_id') || 'None'));
+
+    // Capture the fragment if available
+    this.token = this.route
+      .fragment
+      .pipe(map(fragment => fragment || 'None'));
+  }
+}
+```
+
+Once the application loads the initial route, the `CrisisCenterModule` is preloaded. Verify this by logging in to the `Admin` feature area and noting that the `crisis-center` is listed in the `Preloaded Modules`. It also logs to the browser's console.
+
+
+
+##### Migrating URLs with redirects
 
 ```http
-https://angular.io/guide/router-tutorial-toh#candeactivate-handling-unsaved-changes
+https://angular.io/guide/router-tutorial-toh#migrating-urls-with-redirects
 ```
+
+
+
+
+
+
+
+
+
+
 
 
 
