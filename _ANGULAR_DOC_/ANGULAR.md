@@ -1514,6 +1514,10 @@ The *History* log demonstrates that messages travel in both directions between t
 
 
 
+<hr>
+
+
+
 
 
 ## Angular Routing
@@ -2062,6 +2066,16 @@ The router supports both styles with two `LocationStrategy` providers:
 
 
 The `RouterModule.forRoot()` function sets the `LocationStrategy` to the `PathLocationStrategy`, which makes it the default strategy. You also have the option of switching to the `HashLocationStrategy` with an override during the bootstrapping process.
+
+
+
+<hr>
+
+
+
+
+
+
 
 
 
@@ -6327,19 +6341,153 @@ Once the application loads the initial route, the `CrisisCenterModule` is preloa
 
 ##### Migrating URLs with redirects
 
-```http
-https://angular.io/guide/router-tutorial-toh#migrating-urls-with-redirects
+You've set up the routes for navigating around your application and used navigation imperatively and declaratively. But like any application, requirements change over time. You've setup links and navigation to `/heroes` and `/hero/:id` from the `HeroListComponent` and `HeroDetailComponent` components. If there were a requirement that links to `heroes` become `superheroes`, you would still want the previous URLs to navigate correctly. You also don't want to update every link in your application, so redirects makes refactoring routes trivial.
+
+
+
+###### Changing `/heroes` to `/superheroes`
+
+This section guides you through migrating the `Hero` routes to new URLs. The `Router` checks for redirects in your configuration before navigating, so each redirect is triggered when needed. To support this change, add redirects from the old routes to the new routes in the `heroes-routing.module`.
+
+( src/app/heroes/heroes-routing.module.ts (heroes redirects) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { HeroListComponent } from './hero-list/hero-list.component';
+import { HeroDetailComponent } from './hero-detail/hero-detail.component';
+
+const heroesRoutes: Routes = [
+  { path: 'heroes', redirectTo: '/superheroes' },
+  { path: 'hero/:id', redirectTo: '/superhero/:id' },
+  { path: 'superheroes',  component: HeroListComponent, data: { animation: 'heroes' } },
+  { path: 'superhero/:id', component: HeroDetailComponent, data: { animation: 'hero' } }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forChild(heroesRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class HeroesRoutingModule { }
 ```
 
 
 
+**The `Router` also supports [query parameters](https://angular.io/guide/router-tutorial-toh#query-parameters) and the [fragment](https://angular.io/guide/router-tutorial-toh#fragment) when using redirects.**
+
+- **When using absolute redirects, the `Router` uses the query parameters and the fragment from the `redirectTo` in the route config**
+- **When using relative redirects, the `Router` use the query params and the fragment from the source URL**
 
 
 
+Currently, the empty path route redirects to `/heroes`, which redirects to `/superheroes`. This won't work because the `Router` handles redirects once at each level of routing configuration. This prevents chaining of redirects, which can lead to endless redirect loops.
+
+Instead, update the empty path route in `app-routing.module.ts` to redirect to `/superheroes`.
+
+( src/app/app-routing.module.ts (superheroes redirect) )
+
+```typescript
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+
+import { ComposeMessageComponent } from './compose-message/compose-message.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+
+import { authGuard } from './auth/auth.guard';
+import { SelectivePreloadingStrategyService } from './selective-preloading-strategy.service';
+
+const appRoutes: Routes = [
+  {
+    path: 'compose',
+    component: ComposeMessageComponent,
+    outlet: 'popup'
+  },
+  {
+    path: 'admin',
+    loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule),
+    canMatch: [authGuard]
+  },
+  {
+    path: 'crisis-center',
+    loadChildren: () => import('./crisis-center/crisis-center.module').then(m => m.CrisisCenterModule),
+    data: { preload: true }
+  },
+  { path: '',   redirectTo: '/superheroes', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent }
+];
+
+@NgModule({
+  imports: [
+    RouterModule.forRoot(
+      appRoutes,
+      {
+        enableTracing: false, // <-- debugging purposes only
+        preloadingStrategy: SelectivePreloadingStrategyService,
+      }
+    )
+  ],
+  exports: [
+    RouterModule
+  ]
+})
+export class AppRoutingModule { }
+```
 
 
 
+A `routerLink` isn't tied to route configuration, so update the associated router links to remain active when the new route is active. Update the `app.component.ts` template for the `/heroes` `routerLink`.
 
+( src/app/app.component.html (superheroes active routerLink) )
+
+```html
+<div class="wrapper">
+  <h1 class="title">Angular Router</h1>
+  <nav>
+    <a routerLink="/crisis-center" routerLinkActive="active" ariaCurrentWhenActive="page">Crisis Center</a>
+    <a routerLink="/superheroes" routerLinkActive="active" ariaCurrentWhenActive="page">Heroes</a>
+    <a routerLink="/admin" routerLinkActive="active" ariaCurrentWhenActive="page">Admin</a>
+    <a routerLink="/login" routerLinkActive="active" ariaCurrentWhenActive="page">Login</a>
+    <a [routerLink]="[{ outlets: { popup: ['compose'] } }]">Contact</a>
+  </nav>
+  <div [@routeAnimation]="getRouteAnimationData()">
+    <router-outlet></router-outlet>
+  </div>
+  <router-outlet name="popup"></router-outlet>
+</div>
+```
+
+With the redirects setup, all previous routes now point to their new destinations and both URLs still function as intended.
+
+
+
+##### Inspect the router's configuration
+
+To determine if your routes are actually evaluated [in the proper order](https://angular.io/guide/router-tutorial-toh#routing-module-order), you can inspect the router's configuration.
+
+Do this by injecting the router and logging to the console its `config` property. For example, update the `AppModule` as follows and look in the browser console window to see the finished route configuration.
+
+( src/app/app.module.ts (inspect the router config) )
+
+```typescript
+export class AppModule {
+  // Diagnostic only: inspect router configuration
+  constructor(router: Router) {
+    // Use a custom replacer to display function names in the route configs
+    const replacer = (key, value) => (typeof value === 'function') ? value.name : value;
+
+    console.log('Routes: ', JSON.stringify(router.config, replacer, 2));
+  }
+}
+```
+
+
+
+<hr>
 
 
 
@@ -6602,6 +6750,8 @@ Validation is an integral part of managing any set of forms. Whether you're chec
 For more information, see [Form Validation](https://angular.io/guide/form-validation).
 
 
+
+<hr>
 
 
 
@@ -6873,6 +7023,12 @@ The most common validation is making a field required. The following example sho
 | Import a validator function | Reactive forms include a set of validator functions for common use cases. These functions receive a control to validate against and return an error object or a null value based on the validation check. Import the `Validators` class from the `@angular/forms` package.![](./img/import_validator.png) |
 | Make a field required       | In the `ProfileEditor` component, add the `Validators.required` static method as the second item in the array for the `firstName` control.![](./img/make_a_field_required.png) |
 | Display form status         | When you add a required field to the form control, its initial status is invalid. This invalid status propagates to the parent form group element, making its status invalid. Access the current status of the form group instance through its `status` property. Display the current status of `profileForm` using interpolation.![](./img/display_form_status.png)                                                            The **Submit** button is disabled because `profileForm` is invalid due to the required `firstName` form control. After you fill out the `firstName` input, the form becomes valid and the **Submit** button is enabled.                                     For more on form validation, visit the [Form Validation](https://angular.io/guide/form-validation) guide. |
+
+
+
+
+
+<hr>
 
 
 
